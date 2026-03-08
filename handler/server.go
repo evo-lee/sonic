@@ -31,6 +31,7 @@ type Server struct {
 	Router                    *gin.Engine
 	Template                  *template.Template
 	AuthMiddleware            *middleware.AuthMiddleware
+	LocaleMiddleware          *middleware.LocaleMiddleware
 	RequestIDMiddleware       *middleware.RequestIDMiddleware
 	LogMiddleware             *middleware.GinLoggerMiddleware
 	RecoveryMiddleware        *middleware.RecoveryMiddleware
@@ -88,6 +89,7 @@ type ServerParams struct {
 	Event                     event.Bus
 	Template                  *template.Template
 	AuthMiddleware            *middleware.AuthMiddleware
+	LocaleMiddleware          *middleware.LocaleMiddleware
 	RequestIDMiddleware       *middleware.RequestIDMiddleware
 	LogMiddleware             *middleware.GinLoggerMiddleware
 	RecoveryMiddleware        *middleware.RecoveryMiddleware
@@ -155,6 +157,7 @@ func NewServer(param ServerParams, lifecycle fx.Lifecycle) *Server {
 		Router:                    router,
 		Template:                  param.Template,
 		AuthMiddleware:            param.AuthMiddleware,
+		LocaleMiddleware:          param.LocaleMiddleware,
 		RequestIDMiddleware:       param.RequestIDMiddleware,
 		LogMiddleware:             param.LogMiddleware,
 		RecoveryMiddleware:        param.RecoveryMiddleware,
@@ -234,6 +237,10 @@ func (s *Server) wrapHandler(handler wrapperHandler) gin.HandlerFunc {
 		if err != nil {
 			status := xerr.GetHTTPStatus(err)
 			code := middleware.ErrorCodeFromError(err)
+			message := xerr.GetMessage(err)
+			if message == "" || message == http.StatusText(status) {
+				message = middleware.LocalizedHTTPStatusText(ctx, status)
+			}
 			requestID := middleware.GetRequestID(ctx)
 			s.logger.Error("handler error",
 				zap.Error(err),
@@ -243,14 +250,14 @@ func (s *Server) wrapHandler(handler wrapperHandler) gin.HandlerFunc {
 				zap.String("method", ctx.Request.Method),
 				zap.String("path", ctx.Request.URL.Path),
 			)
-			ctx.JSON(status, middleware.BuildErrorDTO(ctx, status, code, xerr.GetMessage(err)))
+			ctx.JSON(status, middleware.BuildErrorDTO(ctx, status, code, message))
 			return
 		}
 
 		ctx.JSON(http.StatusOK, &dto.BaseDTO{
 			Status:  http.StatusOK,
 			Data:    data,
-			Message: "OK",
+			Message: middleware.T(ctx, "common.ok", "OK"),
 		})
 	}
 }
@@ -306,6 +313,9 @@ func (s *Server) wrapTextHandler(handler wrapperHTMLHandler) gin.HandlerFunc {
 func (s *Server) handleError(ctx *gin.Context, err error) {
 	status := xerr.GetHTTPStatus(err)
 	message := xerr.GetMessage(err)
+	if message == "" || message == http.StatusText(status) {
+		message = middleware.LocalizedHTTPStatusText(ctx, status)
+	}
 	s.logger.Error("render html/text handler error",
 		zap.Error(err),
 		zap.Int("status", status),
@@ -331,6 +341,9 @@ func (s *Server) handleError(ctx *gin.Context, err error) {
 	model["message"] = message
 	model["err"] = err
 	model["request_id"] = middleware.GetRequestID(ctx)
+	model["error_title"] = middleware.T(ctx, "common.unknown_error", "Unknown Error")
+	model["error_default_message"] = middleware.T(ctx, "error.default_message", "Unknown error")
+	model["back_home_label"] = middleware.T(ctx, "common.home", "Home")
 
 	err = s.Template.ExecuteTemplate(ctx.Writer, templateName, model)
 	if err != nil {

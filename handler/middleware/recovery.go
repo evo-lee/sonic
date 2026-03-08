@@ -67,7 +67,7 @@ func (r *RecoveryMiddleware) RecoveryWithLogger() gin.HandlerFunc {
 					ctx.Abort()
 				} else {
 					code := http.StatusInternalServerError
-					AbortWithErrorJSON(ctx, code, ErrorCodeFromStatus(code), http.StatusText(code))
+					AbortWithErrorJSON(ctx, code, ErrorCodeFromStatus(code), LocalizedHTTPStatusText(ctx, code))
 				}
 			}
 		}()

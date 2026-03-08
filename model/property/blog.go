@@ -5,7 +5,7 @@ import "reflect"
 var (
 	BlogLocale = Property{
 		KeyValue:     "blog_locale",
-		DefaultValue: "zh",
+		DefaultValue: "",
 		Kind:         reflect.String,
 	}
 	BlogTitle = Property{

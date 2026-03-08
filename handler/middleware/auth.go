@@ -33,11 +33,11 @@ func (a *AuthMiddleware) GetWrapHandler() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		isInstalled, err := a.OptionService.GetOrByDefaultWithErr(ctx, property.IsInstalled, false)
 		if err != nil {
-			abortWithStatusJSON(ctx, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
+			abortWithStatusJSON(ctx, http.StatusInternalServerError, "")
 			return
 		}
 		if !isInstalled.(bool) {
-			abortWithStatusJSON(ctx, http.StatusBadRequest, "Blog is not initialized")
+			abortWithStatusJSON(ctx, http.StatusBadRequest, T(ctx, "auth.blog_not_initialized", "Blog is not initialized"))
 			return
 		}
 
@@ -45,12 +45,12 @@ func (a *AuthMiddleware) GetWrapHandler() gin.HandlerFunc {
 		if ok {
 			allowedURL, ok := a.OneTimeTokenService.Get(oneTimeToken)
 			if !ok {
-				abortWithStatusJSON(ctx, http.StatusBadRequest, "OneTimeToken is not exist or expired")
+				abortWithStatusJSON(ctx, http.StatusBadRequest, T(ctx, "auth.one_time_token_not_exist_or_expired", "OneTimeToken is not exist or expired"))
 				return
 			}
 			currentURL := ctx.Request.URL.Path
 			if currentURL != allowedURL {
-				abortWithStatusJSON(ctx, http.StatusBadRequest, "The one-time token does not correspond the request uri")
+				abortWithStatusJSON(ctx, http.StatusBadRequest, T(ctx, "auth.one_time_token_uri_mismatch", "The one-time token does not correspond the request uri"))
 				return
 			}
 			return
@@ -58,25 +58,25 @@ func (a *AuthMiddleware) GetWrapHandler() gin.HandlerFunc {
 
 		token := ctx.GetHeader(consts.AdminTokenHeaderName)
 		if token == "" {
-			abortWithStatusJSON(ctx, http.StatusUnauthorized, "未登录，请登录后访问")
+			abortWithStatusJSON(ctx, http.StatusUnauthorized, T(ctx, "auth.not_logged_in", "Not logged in, please login first"))
 			return
 		}
 		userID, ok := a.Cache.Get(cache.BuildTokenAccessKey(token))
 
 		if !ok || userID == nil {
-			abortWithStatusJSON(ctx, http.StatusUnauthorized, "Token 已过期或不存在")
+			abortWithStatusJSON(ctx, http.StatusUnauthorized, T(ctx, "auth.token_expired_or_not_exist", "Token has expired or does not exist"))
 			return
 		}
 
 		user, err := a.UserService.GetByID(ctx, userID.(int32))
 		if xerr.GetType(err) == xerr.NoRecord {
 			_ = ctx.Error(err)
-			abortWithStatusJSON(ctx, http.StatusUnauthorized, "用户不存在")
+			abortWithStatusJSON(ctx, http.StatusUnauthorized, T(ctx, "auth.user_not_found", "User not found"))
 			return
 		}
 		if err != nil {
 			_ = ctx.Error(err)
-			abortWithStatusJSON(ctx, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
+			abortWithStatusJSON(ctx, http.StatusInternalServerError, "")
 			return
 		}
 		ctx.Set(consts.AuthorizedUser, user)

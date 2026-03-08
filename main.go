@@ -44,6 +44,7 @@ func InitApp() *fx.App {
 			handler.NewServer,
 			template.NewTemplate,
 			middleware.NewAuthMiddleware,
+			middleware.NewLocaleMiddleware,
 			middleware.NewRequestIDMiddleware,
 			middleware.NewGinLoggerMiddleware,
 			middleware.NewRecoveryMiddleware,

@@ -1,0 +1,17 @@
+{
+  "common.ok": "成功",
+  "common.home": "首页",
+  "common.unknown_error": "未知错误",
+  "error.bad_request": "请求参数错误",
+  "error.unauthorized": "未授权，请先登录",
+  "error.forbidden": "禁止访问",
+  "error.not_found": "资源不存在",
+  "error.internal_server_error": "服务器内部错误",
+  "error.default_message": "未知错误，可能原因：主题未正确设置或主题文件缺失。",
+  "auth.blog_not_initialized": "博客尚未初始化",
+  "auth.one_time_token_not_exist_or_expired": "一次性令牌不存在或已过期",
+  "auth.one_time_token_uri_mismatch": "一次性令牌与当前请求地址不匹配",
+  "auth.not_logged_in": "未登录，请登录后访问",
+  "auth.token_expired_or_not_exist": "Token 已过期或不存在",
+  "auth.user_not_found": "用户不存在"
+}

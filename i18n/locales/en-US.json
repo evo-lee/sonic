@@ -1,0 +1,17 @@
+{
+  "common.ok": "OK",
+  "common.home": "Home",
+  "common.unknown_error": "Unknown Error",
+  "error.bad_request": "Bad Request",
+  "error.unauthorized": "Unauthorized",
+  "error.forbidden": "Forbidden",
+  "error.not_found": "Not Found",
+  "error.internal_server_error": "Internal Server Error",
+  "error.default_message": "Unknown error. Possible causes: theme not configured correctly or missing theme files.",
+  "auth.blog_not_initialized": "Blog is not initialized",
+  "auth.one_time_token_not_exist_or_expired": "One-time token does not exist or has expired",
+  "auth.one_time_token_uri_mismatch": "The one-time token does not match the request URI",
+  "auth.not_logged_in": "Not logged in, please login first",
+  "auth.token_expired_or_not_exist": "Token has expired or does not exist",
+  "auth.user_not_found": "User not found"
+}

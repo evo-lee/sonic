@@ -32,7 +32,7 @@ func (i *InstallRedirectMiddleware) InstallRedirect() gin.HandlerFunc {
 		}
 		isInstall, err := i.optionService.GetOrByDefaultWithErr(ctx, property.IsInstalled, false)
 		if err != nil {
-			abortWithStatusJSON(ctx, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
+			abortWithStatusJSON(ctx, http.StatusInternalServerError, "")
 			return
 		}
 		if !isInstall.(bool) {

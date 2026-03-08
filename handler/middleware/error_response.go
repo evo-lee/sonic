@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/go-sonic/sonic/i18n"
 	"github.com/go-sonic/sonic/model/dto"
 	"github.com/go-sonic/sonic/util/xerr"
 )
@@ -42,9 +43,31 @@ func ErrorCodeFromStatus(status int) string {
 	}
 }
 
+func LocalizedHTTPStatusText(ctx *gin.Context, status int) string {
+	switch status {
+	case http.StatusBadRequest:
+		return T(ctx, "error.bad_request", http.StatusText(status))
+	case http.StatusUnauthorized:
+		return T(ctx, "error.unauthorized", http.StatusText(status))
+	case http.StatusForbidden:
+		return T(ctx, "error.forbidden", http.StatusText(status))
+	case http.StatusNotFound:
+		return T(ctx, "error.not_found", http.StatusText(status))
+	default:
+		return T(ctx, "error.internal_server_error", http.StatusText(status))
+	}
+}
+
+func T(ctx *gin.Context, key, fallback string) string {
+	return i18n.T(GetLocale(ctx), key, fallback)
+}
+
 func BuildErrorDTO(ctx *gin.Context, status int, code, message string) *dto.BaseDTO {
 	if code == "" {
 		code = ErrorCodeFromStatus(status)
+	}
+	if message == "" {
+		message = LocalizedHTTPStatusText(ctx, status)
 	}
 	return &dto.BaseDTO{
 		Status:    status,
@@ -59,5 +82,8 @@ func AbortWithErrorJSON(ctx *gin.Context, status int, code, message string) {
 }
 
 func abortWithStatusJSON(ctx *gin.Context, status int, message string) {
+	if message == "" {
+		message = LocalizedHTTPStatusText(ctx, status)
+	}
 	AbortWithErrorJSON(ctx, status, ErrorCodeFromStatus(status), message)
 }
