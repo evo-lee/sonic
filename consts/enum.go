@@ -11,8 +11,9 @@ import (
 type DBType string
 
 const (
-	DBTypeMySQL  = "MySQL"
-	DBTypeSQLite = "SQLite"
+	DBTypeMySQL      = "MySQL"
+	DBTypeSQLite     = "SQLite"
+	DBTypePostgreSQL = "PostgreSQL"
 )
 
 type AttachmentType int32

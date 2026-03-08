@@ -43,6 +43,8 @@ func (s *StartListener) HandleEvent(ctx context.Context, startEvent event.Event)
 	}
 	if dal.DBType == consts.DBTypeMySQL {
 		err = dal.DB.Session(&gorm.Session{Context: ctx}).Raw("SELECT VERSION()").Scan(&consts.DatabaseVersion).Error
+	} else if dal.DBType == consts.DBTypePostgreSQL {
+		err = dal.DB.Session(&gorm.Session{Context: ctx}).Raw("SELECT version()").Scan(&consts.DatabaseVersion).Error
 	} else if dal.DBType == consts.DBTypeSQLite {
 		err = dal.DB.Session(&gorm.Session{Context: ctx}).Raw("SELECT SQLITE_VERSION()").Scan(&consts.DatabaseVersion).Error
 	}

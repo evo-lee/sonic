@@ -31,6 +31,9 @@ func NewConfig() *Config {
 	}
 
 	viper.SetDefault("sonic.admin_url_path", "admin")
+	viper.SetDefault("database.max_idle_conns", 200)
+	viper.SetDefault("database.max_open_conns", 300)
+	viper.SetDefault("database.conn_max_idle_hour", 1)
 
 	conf := &Config{}
 	if err := viper.ReadInConfig(); err != nil {

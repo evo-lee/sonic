@@ -3,18 +3,29 @@ package config
 type Config struct {
 	Server     Server      `mapstructure:"server"`
 	Log        Log         `mapstructure:"logging"`
-	PostgreSQL *PostgreSQL `mapstructure:"postgre"`
+	Database   Database    `mapstructure:"database"`
+	PostgreSQL *PostgreSQL `mapstructure:"postgres"`
+	Postgre    *PostgreSQL `mapstructure:"postgre"`
 	MySQL      *MySQL      `mapstructure:"mysql"`
 	SQLite3    *SQLite3    `mapstructure:"sqlite3"`
 	Sonic      Sonic       `mapstructure:"sonic"`
 }
 
+type Database struct {
+	MaxIdleConns    int `mapstructure:"max_idle_conns"`
+	MaxOpenConns    int `mapstructure:"max_open_conns"`
+	ConnMaxIdleHour int `mapstructure:"conn_max_idle_hour"`
+}
+
 type PostgreSQL struct {
+	Dsn      string `mapstructure:"dsn"`
 	Host     string `mapstructure:"host"`
 	Port     string `mapstructure:"port"`
 	DB       string `mapstructure:"db"`
 	Username string `mapstructure:"username"`
 	Password string `mapstructure:"password"`
+	SSLMode  string `mapstructure:"sslmode"`
+	TimeZone string `mapstructure:"timezone"`
 }
 
 type MySQL struct {
@@ -58,4 +69,11 @@ type Sonic struct {
 	ThemeDir          string
 	AdminResourcesDir string
 	AdminURLPath      string `mapstructure:"admin_url_path"`
+}
+
+func (c *Config) GetPostgreSQL() *PostgreSQL {
+	if c.PostgreSQL != nil {
+		return c.PostgreSQL
+	}
+	return c.Postgre
 }

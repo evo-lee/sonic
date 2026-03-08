@@ -2,10 +2,13 @@ package dal
 
 import (
 	"context"
+	"fmt"
+	"net/url"
 	"time"
 
 	"go.uber.org/zap"
 	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -38,6 +41,12 @@ func NewGormDB(conf *config.Config, gormLogger logger.Interface) *gorm.DB {
 			sonicLog.Fatal("connect to MySQL error", zap.Error(err))
 		}
 		DBType = consts.DBTypeMySQL
+	} else if conf.GetPostgreSQL() != nil {
+		DB, err = initPostgreSQL(conf, gormLogger)
+		if err != nil {
+			sonicLog.Fatal("connect to PostgreSQL error", zap.Error(err))
+		}
+		DBType = consts.DBTypePostgreSQL
 	} else {
 		sonicLog.Fatal("No database available")
 	}
@@ -49,9 +58,9 @@ func NewGormDB(conf *config.Config, gormLogger logger.Interface) *gorm.DB {
 	if err != nil {
 		sonicLog.Fatal("get database connection error")
 	}
-	sqlDB.SetMaxIdleConns(200)
-	sqlDB.SetMaxOpenConns(300)
-	sqlDB.SetConnMaxIdleTime(time.Hour)
+	sqlDB.SetMaxIdleConns(conf.Database.MaxIdleConns)
+	sqlDB.SetMaxOpenConns(conf.Database.MaxOpenConns)
+	sqlDB.SetConnMaxIdleTime(time.Duration(conf.Database.ConnMaxIdleHour) * time.Hour)
 	SetDefault(DB)
 	dbMigrate()
 	return DB
@@ -87,6 +96,50 @@ func initSQLite(conf *config.Config, gormLogger logger.Interface) (*gorm.DB, err
 		DisableNestedTransaction: true,
 	})
 	return db, err
+}
+
+func initPostgreSQL(conf *config.Config, gormLogger logger.Interface) (*gorm.DB, error) {
+	postgresConfig := conf.GetPostgreSQL()
+	if postgresConfig == nil {
+		return nil, xerr.WithMsg(nil, "nil PostgreSQL config")
+	}
+	dsn := buildPostgreSQLDSN(postgresConfig)
+	sonicLog.Info("try connect to PostgreSQL", zap.String("dsn", "Use dsn in config"))
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+		Logger:                   gormLogger,
+		PrepareStmt:              true,
+		SkipDefaultTransaction:   true,
+		DisableNestedTransaction: true,
+	})
+	return db, err
+}
+
+func buildPostgreSQLDSN(conf *config.PostgreSQL) string {
+	if conf.Dsn != "" {
+		return conf.Dsn
+	}
+	port := conf.Port
+	if port == "" {
+		port = "5432"
+	}
+	sslMode := conf.SSLMode
+	if sslMode == "" {
+		sslMode = "disable"
+	}
+	timeZone := conf.TimeZone
+	if timeZone == "" {
+		timeZone = "Asia/Shanghai"
+	}
+	return fmt.Sprintf(
+		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s TimeZone=%s",
+		conf.Host,
+		port,
+		conf.Username,
+		conf.Password,
+		conf.DB,
+		sslMode,
+		url.QueryEscape(timeZone),
+	)
 }
 
 func dbMigrate() {
