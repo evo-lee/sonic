@@ -9,9 +9,11 @@ import (
 )
 
 type BaseDTO struct {
-	Status  int         `json:"status"`
-	Message string      `json:"message"`
-	Data    interface{} `json:"data"`
+	Status    int         `json:"status"`
+	Message   string      `json:"message"`
+	Data      interface{} `json:"data"`
+	Code      string      `json:"code,omitempty"`
+	RequestID string      `json:"request_id,omitempty"`
 }
 
 type Page struct {

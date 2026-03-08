@@ -29,6 +29,7 @@ func (s *Server) RegisterRouters() {
 			ExposeHeaders:    []string{"Content-Length"},
 		}))
 	}
+	router.Use(s.RequestIDMiddleware.RequestID())
 
 	{
 		router.GET("/ping", func(ctx *gin.Context) {

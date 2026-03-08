@@ -31,6 +31,7 @@ type Server struct {
 	Router                    *gin.Engine
 	Template                  *template.Template
 	AuthMiddleware            *middleware.AuthMiddleware
+	RequestIDMiddleware       *middleware.RequestIDMiddleware
 	LogMiddleware             *middleware.GinLoggerMiddleware
 	RecoveryMiddleware        *middleware.RecoveryMiddleware
 	InstallRedirectMiddleware *middleware.InstallRedirectMiddleware
@@ -87,6 +88,7 @@ type ServerParams struct {
 	Event                     event.Bus
 	Template                  *template.Template
 	AuthMiddleware            *middleware.AuthMiddleware
+	RequestIDMiddleware       *middleware.RequestIDMiddleware
 	LogMiddleware             *middleware.GinLoggerMiddleware
 	RecoveryMiddleware        *middleware.RecoveryMiddleware
 	InstallRedirectMiddleware *middleware.InstallRedirectMiddleware
@@ -153,6 +155,7 @@ func NewServer(param ServerParams, lifecycle fx.Lifecycle) *Server {
 		Router:                    router,
 		Template:                  param.Template,
 		AuthMiddleware:            param.AuthMiddleware,
+		RequestIDMiddleware:       param.RequestIDMiddleware,
 		LogMiddleware:             param.LogMiddleware,
 		RecoveryMiddleware:        param.RecoveryMiddleware,
 		InstallRedirectMiddleware: param.InstallRedirectMiddleware,
@@ -229,9 +232,18 @@ func (s *Server) wrapHandler(handler wrapperHandler) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		data, err := handler(ctx)
 		if err != nil {
-			s.logger.Error("handler error", zap.Error(err))
 			status := xerr.GetHTTPStatus(err)
-			ctx.JSON(status, &dto.BaseDTO{Status: status, Message: xerr.GetMessage(err)})
+			code := middleware.ErrorCodeFromError(err)
+			requestID := middleware.GetRequestID(ctx)
+			s.logger.Error("handler error",
+				zap.Error(err),
+				zap.Int("status", status),
+				zap.String("code", code),
+				zap.String("request_id", requestID),
+				zap.String("method", ctx.Request.Method),
+				zap.String("path", ctx.Request.URL.Path),
+			)
+			ctx.JSON(status, middleware.BuildErrorDTO(ctx, status, code, xerr.GetMessage(err)))
 			return
 		}
 
@@ -294,6 +306,13 @@ func (s *Server) wrapTextHandler(handler wrapperHTMLHandler) gin.HandlerFunc {
 func (s *Server) handleError(ctx *gin.Context, err error) {
 	status := xerr.GetHTTPStatus(err)
 	message := xerr.GetMessage(err)
+	s.logger.Error("render html/text handler error",
+		zap.Error(err),
+		zap.Int("status", status),
+		zap.String("request_id", middleware.GetRequestID(ctx)),
+		zap.String("method", ctx.Request.Method),
+		zap.String("path", ctx.Request.URL.Path),
+	)
 	model := template.Model{}
 
 	templateName, _ := s.ThemeService.Render(ctx, strconv.Itoa(status))

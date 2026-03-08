@@ -7,7 +7,6 @@ import (
 
 	"github.com/go-sonic/sonic/cache"
 	"github.com/go-sonic/sonic/consts"
-	"github.com/go-sonic/sonic/model/dto"
 	"github.com/go-sonic/sonic/model/property"
 	"github.com/go-sonic/sonic/service"
 	"github.com/go-sonic/sonic/util/xerr"
@@ -82,11 +81,4 @@ func (a *AuthMiddleware) GetWrapHandler() gin.HandlerFunc {
 		}
 		ctx.Set(consts.AuthorizedUser, user)
 	}
-}
-
-func abortWithStatusJSON(ctx *gin.Context, status int, message string) {
-	ctx.AbortWithStatusJSON(status, &dto.BaseDTO{
-		Status:  status,
-		Message: message,
-	})
 }

@@ -50,7 +50,10 @@ func (g *GinLoggerMiddleware) LoggerWithConfig(conf GinLoggerConfig) gin.Handler
 		ctx.Next()
 
 		if len(ctx.Errors) > 0 {
-			logger.Error(ctx.Errors.ByType(gin.ErrorTypePrivate).String())
+			logger.Error("gin private errors",
+				zap.String("errors", ctx.Errors.ByType(gin.ErrorTypePrivate).String()),
+				zap.String("request_id", GetRequestID(ctx)),
+			)
 		}
 		// Log only when path is not being skipped
 		if _, ok := skip[path]; !ok {
@@ -68,7 +71,8 @@ func (g *GinLoggerMiddleware) LoggerWithConfig(conf GinLoggerConfig) gin.Handler
 				zap.Duration("latency", time.Since(start)),
 				zap.String("clientIP", clientIP),
 				zap.String("method", ctx.Request.Method),
-				zap.String("path", path))
+				zap.String("path", path),
+				zap.String("request_id", GetRequestID(ctx)))
 		}
 	}
 }
