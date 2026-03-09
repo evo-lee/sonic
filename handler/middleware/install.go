@@ -3,26 +3,15 @@ package middleware
 import (
 	"net/http"
 
-	"github.com/gin-gonic/gin"
-
 	"github.com/go-sonic/sonic/handler/web"
-	"github.com/go-sonic/sonic/handler/web/ginadapter"
 	"github.com/go-sonic/sonic/model/property"
 	"github.com/go-sonic/sonic/service"
 )
 
-type InstallRedirectMiddleware struct {
-	optionService service.OptionService
-}
+type InstallRedirectMiddleware struct{ optionService service.OptionService }
 
 func NewInstallRedirectMiddleware(optionService service.OptionService) *InstallRedirectMiddleware {
-	return &InstallRedirectMiddleware{
-		optionService: optionService,
-	}
-}
-
-func (i *InstallRedirectMiddleware) InstallRedirect() gin.HandlerFunc {
-	return ginadapter.Wrap(i.Handler())
+	return &InstallRedirectMiddleware{optionService: optionService}
 }
 
 func (i *InstallRedirectMiddleware) Handler() web.HandlerFunc {
@@ -32,8 +21,7 @@ func (i *InstallRedirectMiddleware) Handler() web.HandlerFunc {
 		"/api/admin/login/precheck": {},
 	}
 	return func(ctx web.Context) {
-		path := ctx.Path()
-		if _, ok := skipPath[path]; ok {
+		if _, ok := skipPath[ctx.Path()]; ok {
 			return
 		}
 		isInstall, err := i.optionService.GetOrByDefaultWithErr(ctx, property.IsInstalled, false)
@@ -44,7 +32,6 @@ func (i *InstallRedirectMiddleware) Handler() web.HandlerFunc {
 		if !isInstall.(bool) {
 			ctx.Redirect(http.StatusFound, "/admin/#install")
 			ctx.Abort()
-			return
 		}
 	}
 }

@@ -3,12 +3,9 @@ package middleware
 import (
 	"net/http"
 
-	"github.com/gin-gonic/gin"
-
 	"github.com/go-sonic/sonic/cache"
 	"github.com/go-sonic/sonic/consts"
 	"github.com/go-sonic/sonic/handler/web"
-	"github.com/go-sonic/sonic/handler/web/ginadapter"
 	"github.com/go-sonic/sonic/model/property"
 	"github.com/go-sonic/sonic/service"
 	"github.com/go-sonic/sonic/util/xerr"
@@ -22,17 +19,7 @@ type AuthMiddleware struct {
 }
 
 func NewAuthMiddleware(optionService service.OptionService, oneTimeTokenService service.OneTimeTokenService, cache cache.Cache, userService service.UserService) *AuthMiddleware {
-	authMiddleware := &AuthMiddleware{
-		OptionService:       optionService,
-		OneTimeTokenService: oneTimeTokenService,
-		Cache:               cache,
-		UserService:         userService,
-	}
-	return authMiddleware
-}
-
-func (a *AuthMiddleware) GetWrapHandler() gin.HandlerFunc {
-	return ginadapter.Wrap(a.Handler())
+	return &AuthMiddleware{OptionService: optionService, OneTimeTokenService: oneTimeTokenService, Cache: cache, UserService: userService}
 }
 
 func (a *AuthMiddleware) Handler() web.HandlerFunc {
@@ -54,8 +41,7 @@ func (a *AuthMiddleware) Handler() web.HandlerFunc {
 				abortWithStatusJSON(ctx, http.StatusBadRequest, T(ctx, "auth.one_time_token_not_exist_or_expired", "OneTimeToken is not exist or expired"))
 				return
 			}
-			currentURL := ctx.Path()
-			if currentURL != allowedURL {
+			if ctx.Path() != allowedURL {
 				abortWithStatusJSON(ctx, http.StatusBadRequest, T(ctx, "auth.one_time_token_uri_mismatch", "The one-time token does not correspond the request uri"))
 				return
 			}
@@ -68,7 +54,6 @@ func (a *AuthMiddleware) Handler() web.HandlerFunc {
 			return
 		}
 		userID, ok := a.Cache.Get(cache.BuildTokenAccessKey(token))
-
 		if !ok || userID == nil {
 			abortWithStatusJSON(ctx, http.StatusUnauthorized, T(ctx, "auth.token_expired_or_not_exist", "Token has expired or does not exist"))
 			return

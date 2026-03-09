@@ -1,10 +1,7 @@
 package middleware
 
 import (
-	"github.com/gin-gonic/gin"
-
 	"github.com/go-sonic/sonic/handler/web"
-	"github.com/go-sonic/sonic/handler/web/ginadapter"
 	"github.com/go-sonic/sonic/i18n"
 	"github.com/go-sonic/sonic/model/property"
 	"github.com/go-sonic/sonic/service"
@@ -15,9 +12,7 @@ const (
 	LocaleHeader = "Content-Language"
 )
 
-type LocaleMiddleware struct {
-	optionService service.OptionService
-}
+type LocaleMiddleware struct{ optionService service.OptionService }
 
 func NewLocaleMiddleware(optionService service.OptionService) *LocaleMiddleware {
 	return &LocaleMiddleware{optionService: optionService}
@@ -42,13 +37,7 @@ func (m *LocaleMiddleware) apply(ctx web.Context) {
 	ctx.Next()
 }
 
-func (m *LocaleMiddleware) Handler() web.HandlerFunc {
-	return m.apply
-}
-
-func (m *LocaleMiddleware) Locale() gin.HandlerFunc {
-	return ginadapter.Wrap(m.Handler())
-}
+func (m *LocaleMiddleware) Handler() web.HandlerFunc { return m.apply }
 
 func GetLocale(ctx web.Context) string {
 	value, ok := ctx.Get(LocaleKey)

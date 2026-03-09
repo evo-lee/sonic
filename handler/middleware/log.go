@@ -4,11 +4,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 
 	"github.com/go-sonic/sonic/handler/web"
-	"github.com/go-sonic/sonic/handler/web/ginadapter"
 )
 
 type LoggerMiddleware struct {
@@ -16,21 +14,12 @@ type LoggerMiddleware struct {
 }
 
 func NewLoggerMiddleware(logger *zap.Logger) *LoggerMiddleware {
-	return &LoggerMiddleware{
-		logger: logger,
-	}
+	return &LoggerMiddleware{logger: logger}
 }
 
-// LoggerConfig defines the config for Logger middleware
+// LoggerConfig defines the config for Logger middleware.
 type LoggerConfig struct {
-	// SkipPaths is an url path array which logs are not written.
-	// Optional.
 	SkipPaths []string
-}
-
-// LoggerWithConfig instance a Logger middleware with config.
-func (g *LoggerMiddleware) LoggerWithConfig(conf LoggerConfig) gin.HandlerFunc {
-	return ginadapter.Wrap(g.HandlerWithConfig(conf))
 }
 
 func (g *LoggerMiddleware) HandlerWithConfig(conf LoggerConfig) web.HandlerFunc {
@@ -38,25 +27,18 @@ func (g *LoggerMiddleware) HandlerWithConfig(conf LoggerConfig) web.HandlerFunc 
 	notLogged := conf.SkipPaths
 
 	var skip map[string]struct{}
-
 	if length := len(notLogged); length > 0 {
 		skip = make(map[string]struct{}, length)
-
 		for _, path := range notLogged {
 			skip[path] = struct{}{}
 		}
 	}
 
 	return func(ctx web.Context) {
-		// Start timer
 		start := time.Now()
 		path := ctx.Path()
 		raw := ctx.RawQuery()
-
-		// Process request
 		ctx.Next()
-
-		// Log only when path is not being skipped
 		if _, ok := skip[path]; !ok {
 			if raw != "" {
 				path = path + "?" + raw

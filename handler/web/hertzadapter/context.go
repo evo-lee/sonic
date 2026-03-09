@@ -15,7 +15,11 @@ import (
 	"github.com/go-sonic/sonic/handler/web"
 )
 
-const requestContextKey = "__sonic_request_context__"
+const (
+	requestContextKey   = "__sonic_request_context__"
+	clientIPContextKey  = "client_ip"
+	userAgentContextKey = "user_agent"
+)
 
 type Context struct {
 	baseCtx      context.Context
@@ -34,6 +38,14 @@ func NewContext(baseCtx context.Context, ctx *hertzapp.RequestContext) web.Conte
 	}
 	if baseCtx == nil {
 		baseCtx = context.Background()
+	}
+	if ctx != nil {
+		if baseCtx.Value(clientIPContextKey) == nil {
+			baseCtx = context.WithValue(baseCtx, clientIPContextKey, ctx.ClientIP())
+		}
+		if baseCtx.Value(userAgentContextKey) == nil {
+			baseCtx = context.WithValue(baseCtx, userAgentContextKey, string(ctx.GetHeader("User-Agent")))
+		}
 	}
 	return &Context{baseCtx: baseCtx, ctx: ctx}
 }

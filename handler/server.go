@@ -6,10 +6,8 @@ import (
 	"net/http"
 	"os"
 	"strconv"
-	"strings"
 
 	hertzserver "github.com/cloudwego/hertz/pkg/app/server"
-	"github.com/gin-gonic/gin"
 	"go.uber.org/dig"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
@@ -21,7 +19,6 @@ import (
 	"github.com/go-sonic/sonic/handler/content/api"
 	"github.com/go-sonic/sonic/handler/middleware"
 	"github.com/go-sonic/sonic/handler/web"
-	"github.com/go-sonic/sonic/handler/web/ginadapter"
 	"github.com/go-sonic/sonic/handler/web/hertzadapter"
 	"github.com/go-sonic/sonic/model/dto"
 	"github.com/go-sonic/sonic/service"
@@ -32,9 +29,7 @@ import (
 type Server struct {
 	logger                    *zap.Logger
 	Config                    *config.Config
-	HTTPServer                *http.Server
 	HertzServer               *hertzserver.Hertz
-	GinEngine                 *gin.Engine
 	Router                    web.Router
 	Template                  *template.Template
 	AuthMiddleware            *middleware.AuthMiddleware
@@ -149,39 +144,15 @@ type ServerParams struct {
 
 func NewServer(param ServerParams, lifecycle fx.Lifecycle) *Server {
 	conf := param.Config
-	framework := strings.ToLower(strings.TrimSpace(conf.Server.Framework))
-	if framework == "" {
-		framework = "gin"
-	}
-
-	var (
-		httpServer  *http.Server
-		hertzEngine *hertzserver.Hertz
-		ginEngine   *gin.Engine
-		router      web.Router
+	hertzEngine := hertzserver.New(
+		hertzserver.WithHostPorts(fmt.Sprintf("%s:%s", conf.Server.Host, conf.Server.Port)),
 	)
-	switch framework {
-	case "hertz":
-		hertzEngine = hertzserver.New(
-			hertzserver.WithHostPorts(fmt.Sprintf("%s:%s", conf.Server.Host, conf.Server.Port)),
-		)
-		router = hertzadapter.NewRouter(hertzEngine)
-	default:
-		gin.SetMode(gin.ReleaseMode)
-		ginEngine = gin.New()
-		router = ginadapter.NewRouter(ginEngine)
-		httpServer = &http.Server{
-			Addr:    fmt.Sprintf("%s:%s", conf.Server.Host, conf.Server.Port),
-			Handler: ginEngine,
-		}
-	}
+	router := hertzadapter.NewRouter(hertzEngine)
 
 	s := &Server{
 		logger:                    param.Logger,
 		Config:                    param.Config,
-		HTTPServer:                httpServer,
 		HertzServer:               hertzEngine,
-		GinEngine:                 ginEngine,
 		Router:                    router,
 		Template:                  param.Template,
 		AuthMiddleware:            param.AuthMiddleware,
@@ -235,41 +206,22 @@ func NewServer(param ServerParams, lifecycle fx.Lifecycle) *Server {
 		ContentAPIPhotoHandler:    param.ContentAPIPhotoHandler,
 		ContentAPICommentHandler:  param.ContentAPICommentHandler,
 	}
-	lifecycle.Append(fx.Hook{
-		OnStart: s.Run,
-		OnStop:  s.Stop,
-	})
+	lifecycle.Append(fx.Hook{OnStart: s.Run, OnStop: s.Stop})
 	return s
 }
 
 func (s *Server) Run(ctx context.Context) error {
-	if s.GinEngine != nil && config.IsDev() {
-		gin.SetMode(gin.DebugMode)
-	}
 	go func() {
-		if s.HTTPServer != nil {
-			if err := s.HTTPServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-				s.logger.Error("unexpected error from ListenAndServe", zap.Error(err))
-				fmt.Printf("http server start error:%s\n", err.Error())
-				os.Exit(1)
-			}
-			return
-		}
-		if s.HertzServer != nil {
-			if err := s.HertzServer.Run(); err != nil {
-				s.logger.Error("unexpected error from hertz Run", zap.Error(err))
-				fmt.Printf("http server start error:%s\n", err.Error())
-				os.Exit(1)
-			}
+		if err := s.HertzServer.Run(); err != nil {
+			s.logger.Error("unexpected error from hertz Run", zap.Error(err))
+			fmt.Printf("http server start error:%s\n", err.Error())
+			os.Exit(1)
 		}
 	}()
 	return nil
 }
 
 func (s *Server) Stop(ctx context.Context) error {
-	if s.HTTPServer != nil {
-		return s.HTTPServer.Shutdown(ctx)
-	}
 	if s.HertzServer != nil {
 		return s.HertzServer.Shutdown(ctx)
 	}

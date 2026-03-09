@@ -1,50 +1,45 @@
 package middleware
 
 import (
+	"context"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
-	"github.com/gin-gonic/gin"
+	hertzapp "github.com/cloudwego/hertz/pkg/app"
 
-	"github.com/go-sonic/sonic/handler/web/ginadapter"
+	"github.com/go-sonic/sonic/handler/web/hertzadapter"
 )
 
-func TestRequestID_GenerateWhenHeaderMissing(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	w := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(w)
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	ctx.Request = req
+func TestRequestIDGenerateWhenHeaderMissing(t *testing.T) {
+	var reqCtx hertzapp.RequestContext
+	reqCtx.Request.SetRequestURI("/")
+	reqCtx.Request.Header.SetMethod(http.MethodGet)
+	webCtx := hertzadapter.NewContext(context.Background(), &reqCtx)
 
-	m := NewRequestIDMiddleware()
-	m.RequestID()(ctx)
+	NewRequestIDMiddleware().Handler()(webCtx)
 
-	got := w.Header().Get(RequestIDHeader)
+	got := string(reqCtx.Response.Header.Peek(RequestIDHeader))
 	if got == "" {
 		t.Fatal("expected generated request id in response header")
 	}
-	webCtx := ginadapter.NewContext(ctx)
 	if GetRequestID(webCtx) != got {
 		t.Fatalf("expected context request id %q, got %q", got, GetRequestID(webCtx))
 	}
 }
 
-func TestRequestID_UseIncomingHeader(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	w := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(w)
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	req.Header.Set(RequestIDHeader, "req-123")
-	ctx.Request = req
+func TestRequestIDUseIncomingHeader(t *testing.T) {
+	var reqCtx hertzapp.RequestContext
+	reqCtx.Request.SetRequestURI("/")
+	reqCtx.Request.Header.SetMethod(http.MethodGet)
+	reqCtx.Request.Header.Set(RequestIDHeader, "req-123")
+	webCtx := hertzadapter.NewContext(context.Background(), &reqCtx)
 
-	m := NewRequestIDMiddleware()
-	m.RequestID()(ctx)
+	NewRequestIDMiddleware().Handler()(webCtx)
 
-	if got := w.Header().Get(RequestIDHeader); got != "req-123" {
+	if got := string(reqCtx.Response.Header.Peek(RequestIDHeader)); got != "req-123" {
 		t.Fatalf("expected response request id req-123, got %q", got)
 	}
-	if got := GetRequestID(ginadapter.NewContext(ctx)); got != "req-123" {
+	if got := GetRequestID(webCtx); got != "req-123" {
 		t.Fatalf("expected context request id req-123, got %q", got)
 	}
 }

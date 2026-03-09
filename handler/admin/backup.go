@@ -6,13 +6,11 @@ import (
 	"path"
 	"path/filepath"
 
-	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 
 	"github.com/go-sonic/sonic/config"
 	"github.com/go-sonic/sonic/handler/trans"
 	"github.com/go-sonic/sonic/handler/web"
-	"github.com/go-sonic/sonic/handler/web/ginadapter"
 	"github.com/go-sonic/sonic/log"
 	"github.com/go-sonic/sonic/model/dto"
 	"github.com/go-sonic/sonic/model/param"
@@ -228,8 +226,6 @@ func (b *BackupHandler) DownloadMarkdown(ctx web.Context) {
 	ctx.File(filePath)
 }
 
-type wrapperHandler func(ctx web.Context) (interface{}, error)
-
 func respondWithJSONResult(ctx web.Context, data interface{}, err error) {
 	if err != nil {
 		log.CtxErrorf(ctx.RequestContext(), "err=%+v", err)
@@ -242,12 +238,5 @@ func respondWithJSONResult(ctx web.Context, data interface{}, err error) {
 		Status:  http.StatusOK,
 		Data:    data,
 		Message: "OK",
-	})
-}
-
-func wrapHandler(handler wrapperHandler) gin.HandlerFunc {
-	return ginadapter.Wrap(func(ctx web.Context) {
-		data, err := handler(ctx)
-		respondWithJSONResult(ctx, data, err)
 	})
 }

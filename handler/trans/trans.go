@@ -4,19 +4,19 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/locales/en"
 	"github.com/go-playground/locales/zh"
 	ut "github.com/go-playground/universal-translator"
 	"github.com/go-playground/validator/v10"
 	chTranslations "github.com/go-playground/validator/v10/translations/zh"
+	"github.com/go-sonic/sonic/handler/binding"
 )
 
 var trans ut.Translator
 
 func init() {
 	local := "zh"
-	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
+	if v := binding.ValidatorEngine(); v != nil {
 		zhT := zh.New() // chinese
 		enT := en.New() // english
 		uni := ut.New(enT, zhT, enT)

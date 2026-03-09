@@ -37,9 +37,8 @@ type SQLite3 struct {
 	File   string
 }
 type Server struct {
-	Host      string `mapstructure:"host"`
-	Port      string `mapstructure:"port"`
-	Framework string `mapstructure:"framework"`
+	Host string `mapstructure:"host"`
+	Port string `mapstructure:"port"`
 }
 type Log struct {
 	FileName string `mapstructure:"filename"`

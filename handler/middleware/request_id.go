@@ -1,11 +1,9 @@
 package middleware
 
 import (
-	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
 	"github.com/go-sonic/sonic/handler/web"
-	"github.com/go-sonic/sonic/handler/web/ginadapter"
 )
 
 const (
@@ -15,9 +13,7 @@ const (
 
 type RequestIDMiddleware struct{}
 
-func NewRequestIDMiddleware() *RequestIDMiddleware {
-	return &RequestIDMiddleware{}
-}
+func NewRequestIDMiddleware() *RequestIDMiddleware { return &RequestIDMiddleware{} }
 
 func (m *RequestIDMiddleware) apply(ctx web.Context) {
 	requestID := ctx.Header(RequestIDHeader)
@@ -29,13 +25,7 @@ func (m *RequestIDMiddleware) apply(ctx web.Context) {
 	ctx.Next()
 }
 
-func (m *RequestIDMiddleware) Handler() web.HandlerFunc {
-	return m.apply
-}
-
-func (m *RequestIDMiddleware) RequestID() gin.HandlerFunc {
-	return ginadapter.Wrap(m.Handler())
-}
+func (m *RequestIDMiddleware) Handler() web.HandlerFunc { return m.apply }
 
 func GetRequestID(ctx web.Context) string {
 	requestID, ok := ctx.Get(RequestIDKey)
