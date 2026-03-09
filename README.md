@@ -99,7 +99,7 @@ See: https://hub.docker.com/r/gosonic/sonic
 
 ## TODO
 - [ ] Plugin(base on Wasm)
-- [ ] Use new web framework([Hertz](https://github.com/cloudwego/hertz)) *(Deferred: high migration risk and low near-term ROI)*
+- [x] Use new web framework([Hertz](https://github.com/cloudwego/hertz))
 
 ## Contributing
 

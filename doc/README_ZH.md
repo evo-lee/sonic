@@ -91,7 +91,7 @@ See: https://hub.docker.com/r/gosonic/sonic
 
 ## TODO
 - [ ] 插件系统(基于 Wasm)
-- [ ] 使用新的web框架([Hertz](https://github.com/cloudwego/hertz)) *(暂缓：迁移风险高、短期收益低)*
+- [x] 使用新的web框架([Hertz](https://github.com/cloudwego/hertz))
 
 
 ## 如何贡献
