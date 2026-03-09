@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/go-sonic/sonic/handler/web/ginadapter"
 	"github.com/go-sonic/sonic/util/xerr"
 )
 
@@ -59,7 +60,7 @@ func TestAbortWithErrorJSONIncludesRequestIDAndCode(t *testing.T) {
 	ctx.Request = req
 
 	NewRequestIDMiddleware().RequestID()(ctx)
-	AbortWithErrorJSON(ctx, http.StatusBadRequest, "bad_request", "bad request")
+	AbortWithErrorJSON(ginadapter.NewContext(ctx), http.StatusBadRequest, "bad_request", "bad request")
 
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("expected status=%d, got=%d", http.StatusBadRequest, w.Code)

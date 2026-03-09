@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+
+	"github.com/go-sonic/sonic/handler/web/ginadapter"
 )
 
 func TestRequestID_GenerateWhenHeaderMissing(t *testing.T) {
@@ -22,8 +24,9 @@ func TestRequestID_GenerateWhenHeaderMissing(t *testing.T) {
 	if got == "" {
 		t.Fatal("expected generated request id in response header")
 	}
-	if GetRequestID(ctx) != got {
-		t.Fatalf("expected context request id %q, got %q", got, GetRequestID(ctx))
+	webCtx := ginadapter.NewContext(ctx)
+	if GetRequestID(webCtx) != got {
+		t.Fatalf("expected context request id %q, got %q", got, GetRequestID(webCtx))
 	}
 }
 
@@ -41,7 +44,7 @@ func TestRequestID_UseIncomingHeader(t *testing.T) {
 	if got := w.Header().Get(RequestIDHeader); got != "req-123" {
 		t.Fatalf("expected response request id req-123, got %q", got)
 	}
-	if got := GetRequestID(ctx); got != "req-123" {
+	if got := GetRequestID(ginadapter.NewContext(ctx)); got != "req-123" {
 		t.Fatalf("expected context request id req-123, got %q", got)
 	}
 }

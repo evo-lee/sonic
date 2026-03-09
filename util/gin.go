@@ -2,12 +2,10 @@ package util
 
 import (
 	"context"
-	"fmt"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/go-sonic/sonic/util/xerr"
+	"github.com/go-sonic/sonic/handler/web/ginadapter"
 )
 
 func GetClientIP(ctx context.Context) string {
@@ -27,113 +25,41 @@ func GetUserAgent(ctx context.Context) string {
 }
 
 func MustGetQueryString(ctx *gin.Context, key string) (string, error) {
-	str, ok := ctx.GetQuery(key)
-	if !ok || str == "" {
-		return "", xerr.WithStatus(nil, xerr.StatusBadRequest).WithMsg(fmt.Sprintf("%s parameter does not exisit", key))
-	}
-	return str, nil
+	return MustGetWebQueryString(ginadapter.NewContext(ctx), key)
 }
 
 func MustGetQueryInt32(ctx *gin.Context, key string) (int32, error) {
-	str, ok := ctx.GetQuery(key)
-	if !ok {
-		return 0, xerr.WithStatus(nil, xerr.StatusBadRequest).WithMsg(fmt.Sprintf("%s parameter does not exisit", key))
-	}
-	value, err := strconv.ParseInt(str, 10, 32)
-	if err != nil {
-		return 0, xerr.WithStatus(err, xerr.StatusBadRequest).WithMsg(fmt.Sprintf("The parameter %s type is incorrect", key))
-	}
-	return int32(value), nil
+	return MustGetWebQueryInt32(ginadapter.NewContext(ctx), key)
 }
 
 func MustGetQueryInt64(ctx *gin.Context, key string) (int64, error) {
-	str, ok := ctx.GetQuery(key)
-	if !ok {
-		return 0, xerr.WithStatus(nil, xerr.StatusBadRequest).WithMsg(fmt.Sprintf("%s parameter does not exisit", key))
-	}
-	value, err := strconv.ParseInt(str, 10, 64)
-	if err != nil {
-		return 0, xerr.WithStatus(err, xerr.StatusBadRequest).WithMsg(fmt.Sprintf("The parameter %s type is incorrect", key))
-	}
-	return value, nil
+	return MustGetWebQueryInt64(ginadapter.NewContext(ctx), key)
 }
 
 func MustGetQueryInt(ctx *gin.Context, key string) (int, error) {
-	str, ok := ctx.GetQuery(key)
-	if !ok {
-		return 0, xerr.WithStatus(nil, xerr.StatusBadRequest).WithMsg(fmt.Sprintf("%s parameter does not exisit", key))
-	}
-	value, err := strconv.Atoi(str)
-	if err != nil {
-		return 0, xerr.WithStatus(err, xerr.StatusBadRequest).WithMsg(fmt.Sprintf("The parameter %s type is incorrect", key))
-	}
-	return value, nil
+	return MustGetWebQueryInt(ginadapter.NewContext(ctx), key)
 }
 
 func MustGetQueryBool(ctx *gin.Context, key string) (bool, error) {
-	str, ok := ctx.GetQuery(key)
-	if !ok {
-		return false, xerr.WithStatus(nil, xerr.StatusBadRequest).WithMsg(fmt.Sprintf("%s parameter does not exisit", key))
-	}
-	value, err := strconv.ParseBool(str)
-	if err != nil {
-		return false, xerr.WithStatus(err, xerr.StatusBadRequest).WithMsg(fmt.Sprintf("The parameter %s type is incorrect", key))
-	}
-	return value, nil
+	return MustGetWebQueryBool(ginadapter.NewContext(ctx), key)
 }
 
 func GetQueryBool(ctx *gin.Context, key string, defaultValue bool) (bool, error) {
-	str, ok := ctx.GetQuery(key)
-	if !ok {
-		return defaultValue, nil
-	}
-	value, err := strconv.ParseBool(str)
-	if err != nil {
-		return false, xerr.WithStatus(err, xerr.StatusBadRequest).WithMsg(fmt.Sprintf("The parameter %s type is incorrect", key))
-	}
-	return value, nil
+	return GetWebQueryBool(ginadapter.NewContext(ctx), key, defaultValue)
 }
 
 func ParamString(ctx *gin.Context, key string) (string, error) {
-	str := ctx.Param(key)
-	if str == "" {
-		return "", xerr.WithStatus(nil, xerr.StatusBadRequest).WithMsg(fmt.Sprintf("%s parameter does not exisit", key))
-	}
-	return str, nil
+	return ParamWebString(ginadapter.NewContext(ctx), key)
 }
 
 func ParamInt32(ctx *gin.Context, key string) (int32, error) {
-	str := ctx.Param(key)
-	if str == "" {
-		return 0, xerr.WithStatus(nil, xerr.StatusBadRequest).WithMsg(fmt.Sprintf("%s parameter does not exisit", key))
-	}
-	value, err := strconv.ParseInt(str, 10, 32)
-	if err != nil {
-		return 0, xerr.WithStatus(err, xerr.StatusBadRequest).WithMsg(fmt.Sprintf("The parameter %s type is incorrect", key))
-	}
-	return int32(value), nil
+	return ParamWebInt32(ginadapter.NewContext(ctx), key)
 }
 
 func ParamInt64(ctx *gin.Context, key string) (int64, error) {
-	str := ctx.Param(key)
-	if str == "" {
-		return 0, xerr.WithStatus(nil, xerr.StatusBadRequest).WithMsg(fmt.Sprintf("%s parameter does not exisit", key))
-	}
-	value, err := strconv.ParseInt(str, 10, 64)
-	if err != nil {
-		return 0, xerr.WithStatus(err, xerr.StatusBadRequest).WithMsg(fmt.Sprintf("The parameter %s type is incorrect", key))
-	}
-	return value, nil
+	return ParamWebInt64(ginadapter.NewContext(ctx), key)
 }
 
 func ParamBool(ctx *gin.Context, key string) (bool, error) {
-	str := ctx.Param(key)
-	if str == "" {
-		return false, xerr.WithStatus(nil, xerr.StatusBadRequest).WithMsg(fmt.Sprintf("%s parameter does not exisit", key))
-	}
-	value, err := strconv.ParseBool(str)
-	if err != nil {
-		return false, xerr.WithStatus(err, xerr.StatusBadRequest).WithMsg(fmt.Sprintf("The parameter %s type is incorrect", key))
-	}
-	return value, nil
+	return ParamWebBool(ginadapter.NewContext(ctx), key)
 }

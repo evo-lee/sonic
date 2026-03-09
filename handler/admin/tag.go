@@ -3,10 +3,10 @@ package admin
 import (
 	"errors"
 
-	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 
 	"github.com/go-sonic/sonic/handler/trans"
+	"github.com/go-sonic/sonic/handler/web"
 	"github.com/go-sonic/sonic/model/param"
 	"github.com/go-sonic/sonic/service"
 	"github.com/go-sonic/sonic/util"
@@ -25,41 +25,43 @@ func NewTagHandler(postTagService service.PostTagService, tagService service.Tag
 	}
 }
 
-func (t *TagHandler) ListTags(ctx *gin.Context) (interface{}, error) {
+func (t *TagHandler) ListTags(ctx web.Context) (interface{}, error) {
 	sort := param.Sort{}
-	err := ctx.ShouldBindQuery(&sort)
+	err := ctx.BindQuery(&sort)
 	if err != nil {
 		return nil, xerr.WithMsg(err, "sort parameter error").WithStatus(xerr.StatusBadRequest)
 	}
 	if len(sort.Fields) == 0 {
 		sort.Fields = append(sort.Fields, "createTime,desc")
 	}
-	more, _ := util.MustGetQueryBool(ctx, "more")
+	more, _ := util.MustGetWebQueryBool(ctx, "more")
+	reqCtx := ctx.RequestContext()
 	if more {
-		return t.PostTagService.ListAllTagWithPostCount(ctx, &sort)
+		return t.PostTagService.ListAllTagWithPostCount(reqCtx, &sort)
 	}
-	tags, err := t.TagService.ListAll(ctx, &sort)
+	tags, err := t.TagService.ListAll(reqCtx, &sort)
 	if err != nil {
 		return nil, err
 	}
-	return t.TagService.ConvertToDTOs(ctx, tags)
+	return t.TagService.ConvertToDTOs(reqCtx, tags)
 }
 
-func (t *TagHandler) GetTagByID(ctx *gin.Context) (interface{}, error) {
-	id, err := util.ParamInt32(ctx, "id")
+func (t *TagHandler) GetTagByID(ctx web.Context) (interface{}, error) {
+	id, err := util.ParamWebInt32(ctx, "id")
 	if err != nil {
 		return nil, err
 	}
-	tag, err := t.TagService.GetByID(ctx, id)
+	reqCtx := ctx.RequestContext()
+	tag, err := t.TagService.GetByID(reqCtx, id)
 	if err != nil {
 		return nil, err
 	}
-	return t.TagService.ConvertToDTO(ctx, tag)
+	return t.TagService.ConvertToDTO(reqCtx, tag)
 }
 
-func (t *TagHandler) CreateTag(ctx *gin.Context) (interface{}, error) {
+func (t *TagHandler) CreateTag(ctx web.Context) (interface{}, error) {
 	tagParam := &param.Tag{}
-	err := ctx.ShouldBindJSON(tagParam)
+	err := ctx.BindJSON(tagParam)
 	if err != nil {
 		e := validator.ValidationErrors{}
 		if errors.As(err, &e) {
@@ -67,20 +69,21 @@ func (t *TagHandler) CreateTag(ctx *gin.Context) (interface{}, error) {
 		}
 		return nil, xerr.WithStatus(err, xerr.StatusBadRequest).WithMsg("parameter error")
 	}
-	tag, err := t.TagService.Create(ctx, tagParam)
+	reqCtx := ctx.RequestContext()
+	tag, err := t.TagService.Create(reqCtx, tagParam)
 	if err != nil {
 		return nil, err
 	}
-	return t.TagService.ConvertToDTO(ctx, tag)
+	return t.TagService.ConvertToDTO(reqCtx, tag)
 }
 
-func (t *TagHandler) UpdateTag(ctx *gin.Context) (interface{}, error) {
-	id, err := util.ParamInt32(ctx, "id")
+func (t *TagHandler) UpdateTag(ctx web.Context) (interface{}, error) {
+	id, err := util.ParamWebInt32(ctx, "id")
 	if err != nil {
 		return nil, err
 	}
 	tagParam := &param.Tag{}
-	err = ctx.ShouldBindJSON(tagParam)
+	err = ctx.BindJSON(tagParam)
 	if err != nil {
 		e := validator.ValidationErrors{}
 		if errors.As(err, &e) {
@@ -88,17 +91,18 @@ func (t *TagHandler) UpdateTag(ctx *gin.Context) (interface{}, error) {
 		}
 		return nil, xerr.WithStatus(err, xerr.StatusBadRequest).WithMsg("parameter error")
 	}
-	tag, err := t.TagService.Update(ctx, id, tagParam)
+	reqCtx := ctx.RequestContext()
+	tag, err := t.TagService.Update(reqCtx, id, tagParam)
 	if err != nil {
 		return nil, err
 	}
-	return t.TagService.ConvertToDTO(ctx, tag)
+	return t.TagService.ConvertToDTO(reqCtx, tag)
 }
 
-func (t *TagHandler) DeleteTag(ctx *gin.Context) (interface{}, error) {
-	id, err := util.ParamInt32(ctx, "id")
+func (t *TagHandler) DeleteTag(ctx web.Context) (interface{}, error) {
+	id, err := util.ParamWebInt32(ctx, "id")
 	if err != nil {
 		return nil, err
 	}
-	return nil, t.TagService.Delete(ctx, id)
+	return nil, t.TagService.Delete(ctx.RequestContext(), id)
 }

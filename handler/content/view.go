@@ -8,6 +8,7 @@ import (
 	"github.com/go-sonic/sonic/consts"
 	"github.com/go-sonic/sonic/handler/binding"
 	"github.com/go-sonic/sonic/handler/content/authentication"
+	"github.com/go-sonic/sonic/handler/web"
 	"github.com/go-sonic/sonic/model/param"
 	"github.com/go-sonic/sonic/model/property"
 	"github.com/go-sonic/sonic/service"
@@ -46,34 +47,35 @@ func NewViewHandler(
 	}
 }
 
-func (v *ViewHandler) Admin(ctx *gin.Context) (interface{}, error) {
+func (v *ViewHandler) Admin(ctx web.Context) (interface{}, error) {
 	// TODO
 	return nil, nil
 }
 
-func (v *ViewHandler) Version(ctx *gin.Context) (interface{}, error) {
+func (v *ViewHandler) Version(ctx web.Context) (interface{}, error) {
 	return consts.SonicVersion, nil
 }
 
-func (v *ViewHandler) Install(ctx *gin.Context) {
-	isInstall := v.OptionService.GetOrByDefault(ctx, property.IsInstalled).(bool)
+func (v *ViewHandler) Install(ctx web.Context) {
+	reqCtx := ctx.RequestContext()
+	isInstall := v.OptionService.GetOrByDefault(reqCtx, property.IsInstalled).(bool)
 	if isInstall {
 		return
 	}
-	adminURLPath, _ := v.OptionService.GetAdminURLPath(ctx)
+	adminURLPath, _ := v.OptionService.GetAdminURLPath(reqCtx)
 	ctx.Redirect(http.StatusTemporaryRedirect, adminURLPath+"/#install")
 }
 
-func (v *ViewHandler) Logo(ctx *gin.Context) (interface{}, error) {
-	logo := v.OptionService.GetOrByDefault(ctx, property.BlogLogo).(string)
+func (v *ViewHandler) Logo(ctx web.Context) (interface{}, error) {
+	logo := v.OptionService.GetOrByDefault(ctx.RequestContext(), property.BlogLogo).(string)
 	if logo != "" {
 		ctx.Redirect(http.StatusTemporaryRedirect, logo)
 	}
 	return nil, nil
 }
 
-func (v *ViewHandler) Favicon(ctx *gin.Context) (interface{}, error) {
-	favicon := v.OptionService.GetOrByDefault(ctx, property.BlogFavicon).(string)
+func (v *ViewHandler) Favicon(ctx web.Context) (interface{}, error) {
+	favicon := v.OptionService.GetOrByDefault(ctx.RequestContext(), property.BlogFavicon).(string)
 	if favicon != "" {
 		ctx.Redirect(http.StatusTemporaryRedirect, favicon)
 	}

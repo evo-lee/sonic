@@ -6,6 +6,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
+
+	"github.com/go-sonic/sonic/handler/web/ginadapter"
 )
 
 type GinLoggerMiddleware struct {
@@ -41,6 +43,7 @@ func (g *GinLoggerMiddleware) LoggerWithConfig(conf GinLoggerConfig) gin.Handler
 	}
 
 	return func(ctx *gin.Context) {
+		webCtx := ginadapter.NewContext(ctx)
 		// Start timer
 		start := time.Now()
 		path := ctx.Request.URL.Path
@@ -52,7 +55,7 @@ func (g *GinLoggerMiddleware) LoggerWithConfig(conf GinLoggerConfig) gin.Handler
 		if len(ctx.Errors) > 0 {
 			logger.Error("gin private errors",
 				zap.String("errors", ctx.Errors.ByType(gin.ErrorTypePrivate).String()),
-				zap.String("request_id", GetRequestID(ctx)),
+				zap.String("request_id", GetRequestID(webCtx)),
 			)
 		}
 		// Log only when path is not being skipped
@@ -72,7 +75,7 @@ func (g *GinLoggerMiddleware) LoggerWithConfig(conf GinLoggerConfig) gin.Handler
 				zap.String("clientIP", clientIP),
 				zap.String("method", ctx.Request.Method),
 				zap.String("path", path),
-				zap.String("request_id", GetRequestID(ctx)))
+				zap.String("request_id", GetRequestID(webCtx)))
 		}
 	}
 }

@@ -3,11 +3,11 @@ package admin
 import (
 	"errors"
 
-	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 
 	"github.com/go-sonic/sonic/handler/binding"
 	"github.com/go-sonic/sonic/handler/trans"
+	"github.com/go-sonic/sonic/handler/web"
 	"github.com/go-sonic/sonic/model/param"
 	"github.com/go-sonic/sonic/service"
 	"github.com/go-sonic/sonic/util"
@@ -24,9 +24,9 @@ func NewLinkHandler(linkService service.LinkService) *LinkHandler {
 	}
 }
 
-func (l *LinkHandler) ListLinks(ctx *gin.Context) (interface{}, error) {
+func (l *LinkHandler) ListLinks(ctx web.Context) (interface{}, error) {
 	sort := param.Sort{}
-	err := ctx.ShouldBindWith(&sort, binding.CustomFormBinding)
+	err := ctx.BindWith(&sort, binding.CustomFormBinding)
 	if err != nil {
 		return nil, xerr.WithMsg(err, "sort parameter error").WithStatus(xerr.StatusBadRequest)
 	}
@@ -35,28 +35,30 @@ func (l *LinkHandler) ListLinks(ctx *gin.Context) (interface{}, error) {
 	} else {
 		sort.Fields = append(sort.Fields, "priority,asc")
 	}
-	links, err := l.LinkService.List(ctx, &sort)
+	reqCtx := ctx.RequestContext()
+	links, err := l.LinkService.List(reqCtx, &sort)
 	if err != nil {
 		return nil, err
 	}
-	return l.LinkService.ConvertToDTOs(ctx, links), nil
+	return l.LinkService.ConvertToDTOs(reqCtx, links), nil
 }
 
-func (l *LinkHandler) GetLinkByID(ctx *gin.Context) (interface{}, error) {
-	id, err := util.ParamInt32(ctx, "id")
+func (l *LinkHandler) GetLinkByID(ctx web.Context) (interface{}, error) {
+	id, err := util.ParamWebInt32(ctx, "id")
 	if err != nil {
 		return nil, err
 	}
-	link, err := l.LinkService.GetByID(ctx, id)
+	reqCtx := ctx.RequestContext()
+	link, err := l.LinkService.GetByID(reqCtx, id)
 	if err != nil {
 		return nil, err
 	}
-	return l.LinkService.ConvertToDTO(ctx, link), nil
+	return l.LinkService.ConvertToDTO(reqCtx, link), nil
 }
 
-func (l *LinkHandler) CreateLink(ctx *gin.Context) (interface{}, error) {
+func (l *LinkHandler) CreateLink(ctx web.Context) (interface{}, error) {
 	linkParam := &param.Link{}
-	err := ctx.ShouldBindJSON(linkParam)
+	err := ctx.BindJSON(linkParam)
 	if err != nil {
 		e := validator.ValidationErrors{}
 		if errors.As(err, &e) {
@@ -64,20 +66,21 @@ func (l *LinkHandler) CreateLink(ctx *gin.Context) (interface{}, error) {
 		}
 		return nil, xerr.WithStatus(err, xerr.StatusBadRequest).WithMsg("parameter error")
 	}
-	link, err := l.LinkService.Create(ctx, linkParam)
+	reqCtx := ctx.RequestContext()
+	link, err := l.LinkService.Create(reqCtx, linkParam)
 	if err != nil {
 		return nil, err
 	}
-	return l.LinkService.ConvertToDTO(ctx, link), nil
+	return l.LinkService.ConvertToDTO(reqCtx, link), nil
 }
 
-func (l *LinkHandler) UpdateLink(ctx *gin.Context) (interface{}, error) {
-	id, err := util.ParamInt32(ctx, "id")
+func (l *LinkHandler) UpdateLink(ctx web.Context) (interface{}, error) {
+	id, err := util.ParamWebInt32(ctx, "id")
 	if err != nil {
 		return nil, err
 	}
 	linkParam := &param.Link{}
-	err = ctx.ShouldBindJSON(linkParam)
+	err = ctx.BindJSON(linkParam)
 	if err != nil {
 		e := validator.ValidationErrors{}
 		if errors.As(err, &e) {
@@ -85,21 +88,22 @@ func (l *LinkHandler) UpdateLink(ctx *gin.Context) (interface{}, error) {
 		}
 		return nil, xerr.WithStatus(err, xerr.StatusBadRequest).WithMsg("parameter error")
 	}
-	link, err := l.LinkService.Update(ctx, id, linkParam)
+	reqCtx := ctx.RequestContext()
+	link, err := l.LinkService.Update(reqCtx, id, linkParam)
 	if err != nil {
 		return nil, err
 	}
-	return l.LinkService.ConvertToDTO(ctx, link), nil
+	return l.LinkService.ConvertToDTO(reqCtx, link), nil
 }
 
-func (l *LinkHandler) DeleteLink(ctx *gin.Context) (interface{}, error) {
-	id, err := util.ParamInt32(ctx, "id")
+func (l *LinkHandler) DeleteLink(ctx web.Context) (interface{}, error) {
+	id, err := util.ParamWebInt32(ctx, "id")
 	if err != nil {
 		return nil, err
 	}
-	return nil, l.LinkService.Delete(ctx, id)
+	return nil, l.LinkService.Delete(ctx.RequestContext(), id)
 }
 
-func (l *LinkHandler) ListLinkTeams(ctx *gin.Context) (interface{}, error) {
-	return l.LinkService.ListTeams(ctx)
+func (l *LinkHandler) ListLinkTeams(ctx web.Context) (interface{}, error) {
+	return l.LinkService.ListTeams(ctx.RequestContext())
 }

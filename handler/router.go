@@ -15,6 +15,8 @@ import (
 	"github.com/go-sonic/sonic/consts"
 	"github.com/go-sonic/sonic/dal"
 	"github.com/go-sonic/sonic/handler/middleware"
+	"github.com/go-sonic/sonic/handler/web"
+	"github.com/go-sonic/sonic/handler/web/ginadapter"
 )
 
 func (s *Server) RegisterRouters() {
@@ -76,17 +78,23 @@ func (s *Server) RegisterRouters() {
 					backupRouter := authRouter.Group("/backups")
 					backupRouter.POST("/work-dir", s.wrapHandler(s.BackupHandler.BackupWholeSite))
 					backupRouter.GET("/work-dir", s.wrapHandler(s.BackupHandler.ListBackups))
-					backupRouter.GET("/work-dir/*path", s.BackupHandler.HandleWorkDir)
+					backupRouter.GET("/work-dir/*path", ginadapter.Wrap(func(ctx web.Context) {
+						s.BackupHandler.HandleWorkDir(ctx)
+					}))
 					backupRouter.DELETE("/work-dir", s.wrapHandler(s.BackupHandler.DeleteBackups))
 					backupRouter.POST("/data", s.wrapHandler(s.BackupHandler.ExportData))
 					backupRouter.DELETE("/data", s.wrapHandler(s.BackupHandler.DeleteDataFile))
-					backupRouter.GET("/data/*path", s.BackupHandler.HandleData)
+					backupRouter.GET("/data/*path", ginadapter.Wrap(func(ctx web.Context) {
+						s.BackupHandler.HandleData(ctx)
+					}))
 					backupRouter.POST("/markdown/export", s.wrapHandler(s.BackupHandler.ExportMarkdown))
 					backupRouter.POST("/markdown/import", s.wrapHandler(s.BackupHandler.ImportMarkdown))
 					backupRouter.GET("/markdown/fetch", s.wrapHandler(s.BackupHandler.GetMarkDownBackup))
 					backupRouter.GET("/markdown/export", s.wrapHandler(s.BackupHandler.ListMarkdowns))
 					backupRouter.DELETE("/markdown/export", s.wrapHandler(s.BackupHandler.DeleteMarkdowns))
-					backupRouter.GET("/markdown/export/:filename", s.BackupHandler.DownloadMarkdown)
+					backupRouter.GET("/markdown/export/:filename", ginadapter.Wrap(func(ctx web.Context) {
+						s.BackupHandler.DownloadMarkdown(ctx)
+					}))
 				}
 				{
 					categoryRouter := authRouter.Group("/categories")
@@ -111,7 +119,9 @@ func (s *Server) RegisterRouters() {
 					postRouter.PUT("/:postID/status/draft/content", s.wrapHandler(s.PostHandler.UpdatePostDraft))
 					postRouter.DELETE("/:postID", s.wrapHandler(s.PostHandler.DeletePost))
 					postRouter.DELETE("", s.wrapHandler(s.PostHandler.DeletePostBatch))
-					postRouter.GET("/:postID/preview", s.PostHandler.PreviewPost)
+					postRouter.GET("/:postID/preview", ginadapter.Wrap(func(ctx web.Context) {
+						s.PostHandler.PreviewPost(ctx)
+					}))
 					{
 						postCommentRouter := postRouter.Group("/comments")
 						postCommentRouter.GET("", s.wrapHandler(s.PostCommentHandler.ListPostComment))
@@ -154,7 +164,9 @@ func (s *Server) RegisterRouters() {
 					sheetRouter.PUT("/:sheetID/:status", s.wrapHandler(s.SheetHandler.UpdateSheetStatus))
 					sheetRouter.PUT("/:sheetID/status/draft/content", s.wrapHandler(s.SheetHandler.UpdateSheetDraft))
 					sheetRouter.DELETE("/:sheetID", s.wrapHandler(s.SheetHandler.DeleteSheet))
-					sheetRouter.GET("/preview/:sheetID", s.SheetHandler.PreviewSheet)
+					sheetRouter.GET("/preview/:sheetID", ginadapter.Wrap(func(ctx web.Context) {
+						s.SheetHandler.PreviewSheet(ctx)
+					}))
 					sheetRouter.GET("/independent", s.wrapHandler(s.SheetHandler.IndependentSheets))
 					{
 						sheetCommentRouter := sheetRouter.Group("/comments")
@@ -299,7 +311,9 @@ func (s *Server) RegisterRouters() {
 			contentRouter.GET("/sitemap.html", s.wrapHTMLHandler(s.FeedHandler.SitemapHTML))
 
 			contentRouter.GET("/version", s.wrapHandler(s.ViewHandler.Version))
-			contentRouter.GET("/install", s.ViewHandler.Install)
+			contentRouter.GET("/install", ginadapter.Wrap(func(ctx web.Context) {
+				s.ViewHandler.Install(ctx)
+			}))
 			contentRouter.GET("/logo", s.wrapHandler(s.ViewHandler.Logo))
 			contentRouter.GET("/favicon", s.wrapHandler(s.ViewHandler.Favicon))
 			contentRouter.GET("/search", s.wrapHTMLHandler(s.ContentSearchHandler.Search))

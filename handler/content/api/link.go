@@ -1,8 +1,7 @@
 package api
 
 import (
-	"github.com/gin-gonic/gin"
-
+	"github.com/go-sonic/sonic/handler/web"
 	"github.com/go-sonic/sonic/model/param"
 	"github.com/go-sonic/sonic/service"
 )
@@ -21,9 +20,9 @@ type linkParam struct {
 	*param.Sort
 }
 
-func (l *LinkHandler) ListLinks(ctx *gin.Context) (interface{}, error) {
+func (l *LinkHandler) ListLinks(ctx web.Context) (interface{}, error) {
 	p := linkParam{}
-	if err := ctx.ShouldBindQuery(&p); err != nil {
+	if err := ctx.BindQuery(&p); err != nil {
 		return nil, err
 	}
 
@@ -32,16 +31,17 @@ func (l *LinkHandler) ListLinks(ctx *gin.Context) (interface{}, error) {
 			Fields: []string{"createTime,desc"},
 		}
 	}
-	links, err := l.LinkService.List(ctx, p.Sort)
+	reqCtx := ctx.RequestContext()
+	links, err := l.LinkService.List(reqCtx, p.Sort)
 	if err != nil {
 		return nil, err
 	}
-	return l.LinkService.ConvertToDTOs(ctx, links), nil
+	return l.LinkService.ConvertToDTOs(reqCtx, links), nil
 }
 
-func (l *LinkHandler) LinkTeamVO(ctx *gin.Context) (interface{}, error) {
+func (l *LinkHandler) LinkTeamVO(ctx web.Context) (interface{}, error) {
 	p := linkParam{}
-	if err := ctx.ShouldBindQuery(&p); err != nil {
+	if err := ctx.BindQuery(&p); err != nil {
 		return nil, err
 	}
 
@@ -50,9 +50,10 @@ func (l *LinkHandler) LinkTeamVO(ctx *gin.Context) (interface{}, error) {
 			Fields: []string{"createTime,desc"},
 		}
 	}
-	links, err := l.LinkService.List(ctx, p.Sort)
+	reqCtx := ctx.RequestContext()
+	links, err := l.LinkService.List(reqCtx, p.Sort)
 	if err != nil {
 		return nil, err
 	}
-	return l.LinkService.ConvertToLinkTeamVO(ctx, links), nil
+	return l.LinkService.ConvertToLinkTeamVO(reqCtx, links), nil
 }

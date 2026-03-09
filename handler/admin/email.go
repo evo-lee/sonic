@@ -1,8 +1,7 @@
 package admin
 
 import (
-	"github.com/gin-gonic/gin"
-
+	"github.com/go-sonic/sonic/handler/web"
 	"github.com/go-sonic/sonic/model/param"
 	"github.com/go-sonic/sonic/service"
 	"github.com/go-sonic/sonic/util/xerr"
@@ -18,10 +17,10 @@ func NewEmailHandler(emailService service.EmailService) *EmailHandler {
 	}
 }
 
-func (e *EmailHandler) Test(ctx *gin.Context) (interface{}, error) {
+func (e *EmailHandler) Test(ctx web.Context) (interface{}, error) {
 	p := &param.TestEmail{}
-	if err := ctx.ShouldBindJSON(p); err != nil {
+	if err := ctx.BindJSON(p); err != nil {
 		return nil, xerr.WithStatus(err, xerr.StatusBadRequest).WithMsg("param error ")
 	}
-	return nil, e.EmailService.SendTextEmail(ctx, p.To, p.Subject, p.Content)
+	return nil, e.EmailService.SendTextEmail(ctx.RequestContext(), p.To, p.Subject, p.Content)
 }

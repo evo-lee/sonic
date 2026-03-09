@@ -3,10 +3,10 @@ package admin
 import (
 	"errors"
 
-	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 
 	"github.com/go-sonic/sonic/handler/trans"
+	"github.com/go-sonic/sonic/handler/web"
 	"github.com/go-sonic/sonic/model/dto"
 	"github.com/go-sonic/sonic/model/param"
 	"github.com/go-sonic/sonic/model/property"
@@ -29,13 +29,13 @@ func NewAdminHandler(optionService service.OptionService, adminService service.A
 	}
 }
 
-func (a *AdminHandler) IsInstalled(ctx *gin.Context) (interface{}, error) {
-	return a.OptionService.GetOrByDefaultWithErr(ctx, property.IsInstalled, false)
+func (a *AdminHandler) IsInstalled(ctx web.Context) (interface{}, error) {
+	return a.OptionService.GetOrByDefaultWithErr(ctx.RequestContext(), property.IsInstalled, false)
 }
 
-func (a *AdminHandler) AuthPreCheck(ctx *gin.Context) (interface{}, error) {
+func (a *AdminHandler) AuthPreCheck(ctx web.Context) (interface{}, error) {
 	var loginParam param.LoginParam
-	err := ctx.ShouldBindJSON(&loginParam)
+	err := ctx.BindJSON(&loginParam)
 	if err != nil {
 		e := validator.ValidationErrors{}
 		if errors.As(err, &e) {
@@ -44,16 +44,16 @@ func (a *AdminHandler) AuthPreCheck(ctx *gin.Context) (interface{}, error) {
 		return nil, xerr.BadParam.Wrapf(err, "")
 	}
 
-	user, err := a.AdminService.Authenticate(ctx, loginParam)
+	user, err := a.AdminService.Authenticate(ctx.RequestContext(), loginParam)
 	if err != nil {
 		return nil, err
 	}
 	return &dto.LoginPreCheckDTO{NeedMFACode: a.TwoFactorMFAService.UseMFA(user.MfaType)}, nil
 }
 
-func (a *AdminHandler) Auth(ctx *gin.Context) (interface{}, error) {
+func (a *AdminHandler) Auth(ctx web.Context) (interface{}, error) {
 	var loginParam param.LoginParam
-	err := ctx.ShouldBindJSON(&loginParam)
+	err := ctx.BindJSON(&loginParam)
 	if err != nil {
 		e := validator.ValidationErrors{}
 		if errors.As(err, &e) {
@@ -62,17 +62,17 @@ func (a *AdminHandler) Auth(ctx *gin.Context) (interface{}, error) {
 		return nil, xerr.BadParam.Wrapf(err, "").WithStatus(xerr.StatusBadRequest)
 	}
 
-	return a.AdminService.Auth(ctx, loginParam)
+	return a.AdminService.Auth(ctx.RequestContext(), loginParam)
 }
 
-func (a *AdminHandler) LogOut(ctx *gin.Context) (interface{}, error) {
-	err := a.AdminService.ClearToken(ctx)
+func (a *AdminHandler) LogOut(ctx web.Context) (interface{}, error) {
+	err := a.AdminService.ClearToken(ctx.RequestContext())
 	return nil, err
 }
 
-func (a *AdminHandler) SendResetCode(ctx *gin.Context) (interface{}, error) {
+func (a *AdminHandler) SendResetCode(ctx web.Context) (interface{}, error) {
 	var resetPasswordParam param.ResetPasswordParam
-	err := ctx.ShouldBindJSON(&resetPasswordParam)
+	err := ctx.BindJSON(&resetPasswordParam)
 	if err != nil {
 		e := validator.ValidationErrors{}
 		if errors.As(err, &e) {
@@ -80,26 +80,26 @@ func (a *AdminHandler) SendResetCode(ctx *gin.Context) (interface{}, error) {
 		}
 		return nil, xerr.BadParam.Wrapf(err, "").WithStatus(xerr.StatusBadRequest)
 	}
-	return nil, a.AdminService.SendResetPasswordCode(ctx, resetPasswordParam)
+	return nil, a.AdminService.SendResetPasswordCode(ctx.RequestContext(), resetPasswordParam)
 }
 
-func (a *AdminHandler) RefreshToken(ctx *gin.Context) (interface{}, error) {
+func (a *AdminHandler) RefreshToken(ctx web.Context) (interface{}, error) {
 	refreshToken := ctx.Param("refreshToken")
 	if refreshToken == "" {
 		return nil, xerr.BadParam.New("refreshToken参数为空").WithStatus(xerr.StatusBadRequest).
 			WithMsg("refreshToken 参数不能为空")
 	}
-	return a.AdminService.RefreshToken(ctx, refreshToken)
+	return a.AdminService.RefreshToken(ctx.RequestContext(), refreshToken)
 }
 
-func (a *AdminHandler) GetEnvironments(ctx *gin.Context) (interface{}, error) {
-	return a.AdminService.GetEnvironments(ctx), nil
+func (a *AdminHandler) GetEnvironments(ctx web.Context) (interface{}, error) {
+	return a.AdminService.GetEnvironments(ctx.RequestContext()), nil
 }
 
-func (a *AdminHandler) GetLogFiles(ctx *gin.Context) (interface{}, error) {
-	lines, err := util.MustGetQueryInt64(ctx, "lines")
+func (a *AdminHandler) GetLogFiles(ctx web.Context) (interface{}, error) {
+	lines, err := util.MustGetWebQueryInt64(ctx, "lines")
 	if err != nil {
 		return nil, err
 	}
-	return a.AdminService.GetLogFiles(ctx, lines)
+	return a.AdminService.GetLogFiles(ctx.RequestContext(), lines)
 }

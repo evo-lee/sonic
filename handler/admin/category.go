@@ -3,10 +3,10 @@ package admin
 import (
 	"errors"
 
-	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 
 	"github.com/go-sonic/sonic/handler/trans"
+	"github.com/go-sonic/sonic/handler/web"
 	"github.com/go-sonic/sonic/model/param"
 	"github.com/go-sonic/sonic/service"
 	"github.com/go-sonic/sonic/util"
@@ -23,56 +23,58 @@ func NewCategoryHandler(categoryService service.CategoryService) *CategoryHandle
 	}
 }
 
-func (c *CategoryHandler) GetCategoryByID(ctx *gin.Context) (interface{}, error) {
-	id, err := util.ParamInt32(ctx, "categoryID")
+func (c *CategoryHandler) GetCategoryByID(ctx web.Context) (interface{}, error) {
+	id, err := util.ParamWebInt32(ctx, "categoryID")
 	if err != nil {
 		return nil, err
 	}
-	category, err := c.CategoryService.GetByID(ctx, id)
+	reqCtx := ctx.RequestContext()
+	category, err := c.CategoryService.GetByID(reqCtx, id)
 	if err != nil {
 		return nil, err
 	}
-	return c.CategoryService.ConvertToCategoryDTO(ctx, category)
+	return c.CategoryService.ConvertToCategoryDTO(reqCtx, category)
 }
 
-func (c *CategoryHandler) ListAllCategory(ctx *gin.Context) (interface{}, error) {
+func (c *CategoryHandler) ListAllCategory(ctx web.Context) (interface{}, error) {
 	categoryQuery := struct {
 		*param.Sort
 		More *bool `json:"more" form:"more"`
 	}{}
 
-	err := ctx.ShouldBindQuery(&categoryQuery)
+	err := ctx.BindQuery(&categoryQuery)
 	if err != nil {
 		return nil, xerr.WithStatus(err, xerr.StatusBadRequest).WithMsg("Parameter error")
 	}
+	reqCtx := ctx.RequestContext()
 	if categoryQuery.Sort == nil || len(categoryQuery.Sort.Fields) == 0 {
 		categoryQuery.Sort = &param.Sort{Fields: []string{"priority,asc"}}
 	}
 	if categoryQuery.More != nil && *categoryQuery.More {
-		return c.CategoryService.ListCategoryWithPostCountDTO(ctx, categoryQuery.Sort)
+		return c.CategoryService.ListCategoryWithPostCountDTO(reqCtx, categoryQuery.Sort)
 	}
-	categories, err := c.CategoryService.ListAll(ctx, categoryQuery.Sort)
+	categories, err := c.CategoryService.ListAll(reqCtx, categoryQuery.Sort)
 	if err != nil {
 		return nil, err
 	}
-	return c.CategoryService.ConvertToCategoryDTOs(ctx, categories)
+	return c.CategoryService.ConvertToCategoryDTOs(reqCtx, categories)
 }
 
-func (c *CategoryHandler) ListAsTree(ctx *gin.Context) (interface{}, error) {
+func (c *CategoryHandler) ListAsTree(ctx web.Context) (interface{}, error) {
 	var sort param.Sort
-	err := ctx.ShouldBindQuery(&sort)
+	err := ctx.BindQuery(&sort)
 	if err != nil {
 		return nil, err
 	}
 	if len(sort.Fields) == 0 {
 		sort.Fields = append(sort.Fields, "priority,asc")
 	}
-	return c.CategoryService.ListAsTree(ctx, &sort, false)
+	return c.CategoryService.ListAsTree(ctx.RequestContext(), &sort, false)
 }
 
-func (c *CategoryHandler) CreateCategory(ctx *gin.Context) (interface{}, error) {
+func (c *CategoryHandler) CreateCategory(ctx web.Context) (interface{}, error) {
 	var categoryParam param.Category
-	err := ctx.ShouldBindJSON(&categoryParam)
+	err := ctx.BindJSON(&categoryParam)
 	if err != nil {
 		e := validator.ValidationErrors{}
 		if errors.As(err, &e) {
@@ -80,16 +82,17 @@ func (c *CategoryHandler) CreateCategory(ctx *gin.Context) (interface{}, error) 
 		}
 		return nil, xerr.WithStatus(err, xerr.StatusBadRequest)
 	}
-	category, err := c.CategoryService.Create(ctx, &categoryParam)
+	reqCtx := ctx.RequestContext()
+	category, err := c.CategoryService.Create(reqCtx, &categoryParam)
 	if err != nil {
 		return nil, err
 	}
-	return c.CategoryService.ConvertToCategoryDTO(ctx, category)
+	return c.CategoryService.ConvertToCategoryDTO(reqCtx, category)
 }
 
-func (c *CategoryHandler) UpdateCategory(ctx *gin.Context) (interface{}, error) {
+func (c *CategoryHandler) UpdateCategory(ctx web.Context) (interface{}, error) {
 	var categoryParam param.Category
-	err := ctx.ShouldBindJSON(&categoryParam)
+	err := ctx.BindJSON(&categoryParam)
 	if err != nil {
 		e := validator.ValidationErrors{}
 		if errors.As(err, &e) {
@@ -97,21 +100,22 @@ func (c *CategoryHandler) UpdateCategory(ctx *gin.Context) (interface{}, error) 
 		}
 		return nil, xerr.WithStatus(err, xerr.StatusBadRequest)
 	}
-	categoryID, err := util.ParamInt32(ctx, "categoryID")
+	categoryID, err := util.ParamWebInt32(ctx, "categoryID")
 	if err != nil {
 		return nil, err
 	}
 	categoryParam.ID = categoryID
-	category, err := c.CategoryService.Update(ctx, &categoryParam)
+	reqCtx := ctx.RequestContext()
+	category, err := c.CategoryService.Update(reqCtx, &categoryParam)
 	if err != nil {
 		return nil, err
 	}
-	return c.CategoryService.ConvertToCategoryDTO(ctx, category)
+	return c.CategoryService.ConvertToCategoryDTO(reqCtx, category)
 }
 
-func (c *CategoryHandler) UpdateCategoryBatch(ctx *gin.Context) (interface{}, error) {
+func (c *CategoryHandler) UpdateCategoryBatch(ctx web.Context) (interface{}, error) {
 	categoryParams := make([]*param.Category, 0)
-	err := ctx.ShouldBindJSON(&categoryParams)
+	err := ctx.BindJSON(&categoryParams)
 	if err != nil {
 		e := validator.ValidationErrors{}
 		if errors.As(err, &e) {
@@ -119,17 +123,18 @@ func (c *CategoryHandler) UpdateCategoryBatch(ctx *gin.Context) (interface{}, er
 		}
 		return nil, xerr.WithStatus(err, xerr.StatusBadRequest).WithMsg("parameter error")
 	}
-	categories, err := c.CategoryService.UpdateBatch(ctx, categoryParams)
+	reqCtx := ctx.RequestContext()
+	categories, err := c.CategoryService.UpdateBatch(reqCtx, categoryParams)
 	if err != nil {
 		return nil, err
 	}
-	return c.CategoryService.ConvertToCategoryDTOs(ctx, categories)
+	return c.CategoryService.ConvertToCategoryDTOs(reqCtx, categories)
 }
 
-func (c *CategoryHandler) DeleteCategory(ctx *gin.Context) (interface{}, error) {
-	categoryID, err := util.ParamInt32(ctx, "categoryID")
+func (c *CategoryHandler) DeleteCategory(ctx web.Context) (interface{}, error) {
+	categoryID, err := util.ParamWebInt32(ctx, "categoryID")
 	if err != nil {
 		return nil, err
 	}
-	return nil, c.CategoryService.Delete(ctx, categoryID)
+	return nil, c.CategoryService.Delete(ctx.RequestContext(), categoryID)
 }

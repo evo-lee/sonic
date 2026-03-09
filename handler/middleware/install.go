@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/go-sonic/sonic/handler/web/ginadapter"
 	"github.com/go-sonic/sonic/model/property"
 	"github.com/go-sonic/sonic/service"
 )
@@ -26,13 +27,14 @@ func (i *InstallRedirectMiddleware) InstallRedirect() gin.HandlerFunc {
 		"/api/admin/login/precheck": {},
 	}
 	return func(ctx *gin.Context) {
+		webCtx := ginadapter.NewContext(ctx)
 		path := ctx.Request.URL.Path
 		if _, ok := skipPath[path]; ok {
 			return
 		}
 		isInstall, err := i.optionService.GetOrByDefaultWithErr(ctx, property.IsInstalled, false)
 		if err != nil {
-			abortWithStatusJSON(ctx, http.StatusInternalServerError, "")
+			abortWithStatusJSON(webCtx, http.StatusInternalServerError, "")
 			return
 		}
 		if !isInstall.(bool) {

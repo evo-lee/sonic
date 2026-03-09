@@ -26,6 +26,10 @@ func (customFormBinding) Name() string {
 }
 
 func (customFormBinding) Bind(req *http.Request, obj interface{}) error {
+	return BindForm(req, obj)
+}
+
+func BindForm(req *http.Request, obj interface{}) error {
 	if err := req.ParseForm(); err != nil {
 		return err
 	}
@@ -45,6 +49,10 @@ func (customFormPostBinding) Name() string {
 }
 
 func (customFormPostBinding) Bind(req *http.Request, obj interface{}) error {
+	return BindFormPost(req, obj)
+}
+
+func BindFormPost(req *http.Request, obj interface{}) error {
 	if err := req.ParseForm(); err != nil {
 		return err
 	}

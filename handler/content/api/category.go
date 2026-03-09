@@ -1,11 +1,10 @@
 package api
 
 import (
-	"github.com/gin-gonic/gin"
-
 	"github.com/go-sonic/sonic/consts"
 	"github.com/go-sonic/sonic/handler/binding"
 	"github.com/go-sonic/sonic/handler/content/authentication"
+	"github.com/go-sonic/sonic/handler/web"
 	"github.com/go-sonic/sonic/model/dto"
 	"github.com/go-sonic/sonic/model/param"
 	"github.com/go-sonic/sonic/service"
@@ -30,52 +29,54 @@ func NewCategoryHandler(postService service.PostService, categoryService service
 	}
 }
 
-func (c *CategoryHandler) ListCategories(ctx *gin.Context) (interface{}, error) {
+func (c *CategoryHandler) ListCategories(ctx web.Context) (interface{}, error) {
 	categoryQuery := struct {
 		*param.Sort
 		More *bool `json:"more" form:"more"`
 	}{}
 
-	err := ctx.ShouldBindQuery(&categoryQuery)
+	err := ctx.BindQuery(&categoryQuery)
 	if err != nil {
 		return nil, xerr.WithStatus(err, xerr.StatusBadRequest).WithMsg("Parameter error")
 	}
+	reqCtx := ctx.RequestContext()
 	if categoryQuery.Sort == nil || len(categoryQuery.Sort.Fields) == 0 {
 		categoryQuery.Sort = &param.Sort{Fields: []string{"updateTime,desc"}}
 	}
 	if categoryQuery.More != nil && *categoryQuery.More {
-		return c.CategoryService.ListCategoryWithPostCountDTO(ctx, categoryQuery.Sort)
+		return c.CategoryService.ListCategoryWithPostCountDTO(reqCtx, categoryQuery.Sort)
 	}
-	categories, err := c.CategoryService.ListAll(ctx, categoryQuery.Sort)
+	categories, err := c.CategoryService.ListAll(reqCtx, categoryQuery.Sort)
 	if err != nil {
 		return nil, err
 	}
-	return c.CategoryService.ConvertToCategoryDTOs(ctx, categories)
+	return c.CategoryService.ConvertToCategoryDTOs(reqCtx, categories)
 }
 
-func (c *CategoryHandler) ListPosts(ctx *gin.Context) (interface{}, error) {
-	slug, err := util.ParamString(ctx, "slug")
+func (c *CategoryHandler) ListPosts(ctx web.Context) (interface{}, error) {
+	slug, err := util.ParamWebString(ctx, "slug")
 	if err != nil {
 		return nil, err
 	}
-	category, err := c.CategoryService.GetBySlug(ctx, slug)
+	reqCtx := ctx.RequestContext()
+	category, err := c.CategoryService.GetBySlug(reqCtx, slug)
 	if err != nil {
 		return nil, err
 	}
 	postQuery := param.PostQuery{}
-	err = ctx.ShouldBindWith(&postQuery, binding.CustomFormBinding)
+	err = ctx.BindWith(&postQuery, binding.CustomFormBinding)
 	if err != nil {
 		return nil, xerr.WithStatus(err, xerr.StatusBadRequest).WithMsg("Parameter error")
 	}
 	if postQuery.Sort == nil {
 		postQuery.Sort = &param.Sort{Fields: []string{"topPriority,desc", "updateTime,desc"}}
 	}
-	password, _ := util.MustGetQueryString(ctx, "password")
+	password, _ := util.MustGetWebQueryString(ctx, "password")
 
 	if category.Type == consts.CategoryTypeIntimate {
 		token, _ := ctx.Cookie("authentication")
-		if authenticated, _ := c.CategoryAuthentication.IsAuthenticated(ctx, token, category.ID); !authenticated {
-			token, err := c.CategoryAuthentication.Authenticate(ctx, token, category.ID, password)
+		if authenticated, _ := c.CategoryAuthentication.IsAuthenticated(reqCtx, token, category.ID); !authenticated {
+			token, err := c.CategoryAuthentication.Authenticate(reqCtx, token, category.ID, password)
 			if err != nil {
 				return nil, err
 			}
@@ -84,10 +85,10 @@ func (c *CategoryHandler) ListPosts(ctx *gin.Context) (interface{}, error) {
 	}
 	postQuery.WithPassword = util.BoolPtr(false)
 	postQuery.Statuses = []*consts.PostStatus{consts.PostStatusPublished.Ptr(), consts.PostStatusIntimate.Ptr()}
-	posts, totalCount, err := c.PostService.Page(ctx, postQuery)
+	posts, totalCount, err := c.PostService.Page(reqCtx, postQuery)
 	if err != nil {
 		return nil, err
 	}
-	postVOs, err := c.PostAssembler.ConvertToListVO(ctx, posts)
+	postVOs, err := c.PostAssembler.ConvertToListVO(reqCtx, posts)
 	return dto.NewPage(postVOs, totalCount, postQuery.Page), err
 }

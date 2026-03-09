@@ -3,10 +3,9 @@ package api
 import (
 	"html/template"
 
-	"github.com/gin-gonic/gin"
-
 	"github.com/go-sonic/sonic/consts"
 	"github.com/go-sonic/sonic/handler/binding"
+	"github.com/go-sonic/sonic/handler/web"
 	"github.com/go-sonic/sonic/model/dto"
 	"github.com/go-sonic/sonic/model/param"
 	"github.com/go-sonic/sonic/model/property"
@@ -37,15 +36,16 @@ func NewSheetHandler(
 	}
 }
 
-func (s *SheetHandler) ListTopComment(ctx *gin.Context) (interface{}, error) {
-	sheetID, err := util.ParamInt32(ctx, "sheetID")
+func (s *SheetHandler) ListTopComment(ctx web.Context) (interface{}, error) {
+	sheetID, err := util.ParamWebInt32(ctx, "sheetID")
 	if err != nil {
 		return nil, err
 	}
-	pageSize := s.OptionService.GetOrByDefault(ctx, property.CommentPageSize).(int)
+	reqCtx := ctx.RequestContext()
+	pageSize := s.OptionService.GetOrByDefault(reqCtx, property.CommentPageSize).(int)
 
 	commentQuery := param.CommentQuery{}
-	err = ctx.ShouldBindWith(&commentQuery, binding.CustomFormBinding)
+	err = ctx.BindWith(&commentQuery, binding.CustomFormBinding)
 	if err != nil {
 		return nil, xerr.WithStatus(err, xerr.StatusBadRequest).WithMsg("Parameter error")
 	}
@@ -60,44 +60,46 @@ func (s *SheetHandler) ListTopComment(ctx *gin.Context) (interface{}, error) {
 	commentQuery.PageSize = pageSize
 	commentQuery.ParentID = util.Int32Ptr(0)
 
-	comments, totalCount, err := s.SheetCommentService.Page(ctx, commentQuery, consts.CommentTypeSheet)
+	comments, totalCount, err := s.SheetCommentService.Page(reqCtx, commentQuery, consts.CommentTypeSheet)
 	if err != nil {
 		return nil, err
 	}
-	_ = s.SheetCommentAssembler.ClearSensitiveField(ctx, comments)
-	commenVOs, err := s.SheetCommentAssembler.ConvertToWithHasChildren(ctx, comments)
+	_ = s.SheetCommentAssembler.ClearSensitiveField(reqCtx, comments)
+	commenVOs, err := s.SheetCommentAssembler.ConvertToWithHasChildren(reqCtx, comments)
 	if err != nil {
 		return nil, err
 	}
 	return dto.NewPage(commenVOs, totalCount, commentQuery.Page), nil
 }
 
-func (s *SheetHandler) ListChildren(ctx *gin.Context) (interface{}, error) {
-	sheetID, err := util.ParamInt32(ctx, "sheetID")
+func (s *SheetHandler) ListChildren(ctx web.Context) (interface{}, error) {
+	sheetID, err := util.ParamWebInt32(ctx, "sheetID")
 	if err != nil {
 		return nil, err
 	}
-	parentID, err := util.ParamInt32(ctx, "parentID")
+	parentID, err := util.ParamWebInt32(ctx, "parentID")
 	if err != nil {
 		return nil, err
 	}
-	children, err := s.SheetCommentService.GetChildren(ctx, parentID, sheetID, consts.CommentTypeSheet)
+	reqCtx := ctx.RequestContext()
+	children, err := s.SheetCommentService.GetChildren(reqCtx, parentID, sheetID, consts.CommentTypeSheet)
 	if err != nil {
 		return nil, err
 	}
-	_ = s.SheetCommentAssembler.ClearSensitiveField(ctx, children)
-	return s.SheetCommentAssembler.ConvertToDTOList(ctx, children)
+	_ = s.SheetCommentAssembler.ClearSensitiveField(reqCtx, children)
+	return s.SheetCommentAssembler.ConvertToDTOList(reqCtx, children)
 }
 
-func (s *SheetHandler) ListCommentTree(ctx *gin.Context) (interface{}, error) {
-	sheetID, err := util.ParamInt32(ctx, "sheetID")
+func (s *SheetHandler) ListCommentTree(ctx web.Context) (interface{}, error) {
+	sheetID, err := util.ParamWebInt32(ctx, "sheetID")
 	if err != nil {
 		return nil, err
 	}
-	pageSize := s.OptionService.GetOrByDefault(ctx, property.CommentPageSize).(int)
+	reqCtx := ctx.RequestContext()
+	pageSize := s.OptionService.GetOrByDefault(reqCtx, property.CommentPageSize).(int)
 
 	commentQuery := param.CommentQuery{}
-	err = ctx.ShouldBindWith(&commentQuery, binding.CustomFormBinding)
+	err = ctx.BindWith(&commentQuery, binding.CustomFormBinding)
 	if err != nil {
 		return nil, xerr.WithStatus(err, xerr.StatusBadRequest).WithMsg("Parameter error")
 	}
@@ -112,27 +114,28 @@ func (s *SheetHandler) ListCommentTree(ctx *gin.Context) (interface{}, error) {
 	commentQuery.PageSize = pageSize
 	commentQuery.ParentID = util.Int32Ptr(0)
 
-	allComments, err := s.SheetCommentService.GetByContentID(ctx, sheetID, consts.CommentTypeSheet, commentQuery.Sort)
+	allComments, err := s.SheetCommentService.GetByContentID(reqCtx, sheetID, consts.CommentTypeSheet, commentQuery.Sort)
 	if err != nil {
 		return nil, err
 	}
-	_ = s.SheetCommentAssembler.ClearSensitiveField(ctx, allComments)
-	commentVOs, total, err := s.SheetCommentAssembler.PageConvertToVOs(ctx, allComments, commentQuery.Page)
+	_ = s.SheetCommentAssembler.ClearSensitiveField(reqCtx, allComments)
+	commentVOs, total, err := s.SheetCommentAssembler.PageConvertToVOs(reqCtx, allComments, commentQuery.Page)
 	if err != nil {
 		return nil, err
 	}
 	return dto.NewPage(commentVOs, total, commentQuery.Page), nil
 }
 
-func (s *SheetHandler) ListComment(ctx *gin.Context) (interface{}, error) {
-	sheetID, err := util.ParamInt32(ctx, "sheetID")
+func (s *SheetHandler) ListComment(ctx web.Context) (interface{}, error) {
+	sheetID, err := util.ParamWebInt32(ctx, "sheetID")
 	if err != nil {
 		return nil, err
 	}
-	pageSize := s.OptionService.GetOrByDefault(ctx, property.CommentPageSize).(int)
+	reqCtx := ctx.RequestContext()
+	pageSize := s.OptionService.GetOrByDefault(reqCtx, property.CommentPageSize).(int)
 
 	commentQuery := param.CommentQuery{}
-	err = ctx.ShouldBindWith(&commentQuery, binding.CustomFormBinding)
+	err = ctx.BindWith(&commentQuery, binding.CustomFormBinding)
 	if err != nil {
 		return nil, xerr.WithStatus(err, xerr.StatusBadRequest).WithMsg("Parameter error")
 	}
@@ -147,21 +150,21 @@ func (s *SheetHandler) ListComment(ctx *gin.Context) (interface{}, error) {
 	commentQuery.PageSize = pageSize
 	commentQuery.ParentID = util.Int32Ptr(0)
 
-	comments, total, err := s.SheetCommentService.Page(ctx, commentQuery, consts.CommentTypeSheet)
+	comments, total, err := s.SheetCommentService.Page(reqCtx, commentQuery, consts.CommentTypeSheet)
 	if err != nil {
 		return nil, err
 	}
-	_ = s.SheetCommentAssembler.ClearSensitiveField(ctx, comments)
-	result, err := s.SheetCommentAssembler.ConvertToWithParentVO(ctx, comments)
+	_ = s.SheetCommentAssembler.ClearSensitiveField(reqCtx, comments)
+	result, err := s.SheetCommentAssembler.ConvertToWithParentVO(reqCtx, comments)
 	if err != nil {
 		return nil, err
 	}
 	return dto.NewPage(result, total, commentQuery.Page), nil
 }
 
-func (s *SheetHandler) CreateComment(ctx *gin.Context) (interface{}, error) {
+func (s *SheetHandler) CreateComment(ctx web.Context) (interface{}, error) {
 	comment := param.Comment{}
-	err := ctx.ShouldBindJSON(&comment)
+	err := ctx.BindJSON(&comment)
 	if err != nil {
 		return nil, xerr.WithStatus(err, xerr.StatusBadRequest).WithMsg("Parameter error")
 	}
@@ -176,9 +179,10 @@ func (s *SheetHandler) CreateComment(ctx *gin.Context) (interface{}, error) {
 	comment.Content = template.HTMLEscapeString(comment.Content)
 	comment.Email = template.HTMLEscapeString(comment.Email)
 	comment.CommentType = consts.CommentTypeSheet
-	result, err := s.SheetCommentService.CreateBy(ctx, &comment)
+	reqCtx := ctx.RequestContext()
+	result, err := s.SheetCommentService.CreateBy(reqCtx, &comment)
 	if err != nil {
 		return nil, err
 	}
-	return s.SheetCommentAssembler.ConvertToDTO(ctx, result)
+	return s.SheetCommentAssembler.ConvertToDTO(reqCtx, result)
 }

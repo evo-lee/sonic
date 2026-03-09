@@ -11,6 +11,8 @@ import (
 
 	"github.com/go-sonic/sonic/config"
 	"github.com/go-sonic/sonic/handler/trans"
+	"github.com/go-sonic/sonic/handler/web"
+	"github.com/go-sonic/sonic/handler/web/ginadapter"
 	"github.com/go-sonic/sonic/log"
 	"github.com/go-sonic/sonic/model/dto"
 	"github.com/go-sonic/sonic/model/param"
@@ -29,33 +31,33 @@ func NewBackupHandler(backupService service.BackupService) *BackupHandler {
 	}
 }
 
-func (b *BackupHandler) GetWorkDirBackup(ctx *gin.Context) (interface{}, error) {
-	filename, err := util.MustGetQueryString(ctx, "filename")
+func (b *BackupHandler) GetWorkDirBackup(ctx web.Context) (interface{}, error) {
+	filename, err := util.MustGetWebQueryString(ctx, "filename")
 	if err != nil {
 		return nil, err
 	}
-	return b.BackupService.GetBackup(ctx, filepath.Join(config.BackupDir, filename), service.WholeSite)
+	return b.BackupService.GetBackup(ctx.RequestContext(), filepath.Join(config.BackupDir, filename), service.WholeSite)
 }
 
-func (b *BackupHandler) GetDataBackup(ctx *gin.Context) (interface{}, error) {
-	filename, err := util.MustGetQueryString(ctx, "filename")
+func (b *BackupHandler) GetDataBackup(ctx web.Context) (interface{}, error) {
+	filename, err := util.MustGetWebQueryString(ctx, "filename")
 	if err != nil {
 		return nil, err
 	}
-	return b.BackupService.GetBackup(ctx, filepath.Join(config.DataExportDir, filename), service.JSONData)
+	return b.BackupService.GetBackup(ctx.RequestContext(), filepath.Join(config.DataExportDir, filename), service.JSONData)
 }
 
-func (b *BackupHandler) GetMarkDownBackup(ctx *gin.Context) (interface{}, error) {
-	filename, err := util.MustGetQueryString(ctx, "filename")
+func (b *BackupHandler) GetMarkDownBackup(ctx web.Context) (interface{}, error) {
+	filename, err := util.MustGetWebQueryString(ctx, "filename")
 	if err != nil {
 		return nil, err
 	}
-	return b.BackupService.GetBackup(ctx, filepath.Join(config.BackupMarkdownDir, filename), service.Markdown)
+	return b.BackupService.GetBackup(ctx.RequestContext(), filepath.Join(config.BackupMarkdownDir, filename), service.Markdown)
 }
 
-func (b *BackupHandler) BackupWholeSite(ctx *gin.Context) (interface{}, error) {
+func (b *BackupHandler) BackupWholeSite(ctx web.Context) (interface{}, error) {
 	toBackupItems := make([]string, 0)
-	err := ctx.ShouldBindJSON(&toBackupItems)
+	err := ctx.BindJSON(&toBackupItems)
 	if err != nil {
 		e := validator.ValidationErrors{}
 		if errors.As(err, &e) {
@@ -64,31 +66,33 @@ func (b *BackupHandler) BackupWholeSite(ctx *gin.Context) (interface{}, error) {
 		return nil, xerr.WithStatus(err, xerr.StatusBadRequest)
 	}
 
-	return b.BackupService.BackupWholeSite(ctx, toBackupItems)
+	return b.BackupService.BackupWholeSite(ctx.RequestContext(), toBackupItems)
 }
 
-func (b *BackupHandler) ListBackups(ctx *gin.Context) (interface{}, error) {
-	return b.BackupService.ListFiles(ctx, config.BackupDir, service.WholeSite)
+func (b *BackupHandler) ListBackups(ctx web.Context) (interface{}, error) {
+	return b.BackupService.ListFiles(ctx.RequestContext(), config.BackupDir, service.WholeSite)
 }
 
-func (b *BackupHandler) ListToBackupItems(ctx *gin.Context) (interface{}, error) {
-	return b.BackupService.ListToBackupItems(ctx)
+func (b *BackupHandler) ListToBackupItems(ctx web.Context) (interface{}, error) {
+	return b.BackupService.ListToBackupItems(ctx.RequestContext())
 }
 
-func (b *BackupHandler) HandleWorkDir(ctx *gin.Context) {
-	path := ctx.Request.URL.Path
+func (b *BackupHandler) HandleWorkDir(ctx web.Context) {
+	path := ctx.Path()
 	if path == "/api/admin/backups/work-dir/fetch" {
-		wrapHandler(b.GetWorkDirBackup)(ctx)
+		data, err := b.GetWorkDirBackup(ctx)
+		respondWithJSONResult(ctx, data, err)
 		return
 	}
 	if path == "/api/admin/backups/work-dir/options" || path == "/api/admin/backups/work-dir/options/" {
-		wrapHandler(b.ListToBackupItems)(ctx)
+		data, err := b.ListToBackupItems(ctx)
+		respondWithJSONResult(ctx, data, err)
 		return
 	}
 	b.DownloadBackups(ctx)
 }
 
-func (b *BackupHandler) DownloadBackups(ctx *gin.Context) {
+func (b *BackupHandler) DownloadBackups(ctx web.Context) {
 	filename := ctx.Param("path")
 	if filename == "" {
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, &dto.BaseDTO{
@@ -97,24 +101,26 @@ func (b *BackupHandler) DownloadBackups(ctx *gin.Context) {
 		})
 		return
 	}
-	filePath, err := b.BackupService.GetBackupFilePath(ctx, config.BackupDir, filename)
+	reqCtx := ctx.RequestContext()
+	filePath, err := b.BackupService.GetBackupFilePath(reqCtx, config.BackupDir, filename)
 	if err != nil {
-		log.CtxErrorf(ctx, "err=%+v", err)
+		log.CtxErrorf(reqCtx, "err=%+v", err)
 		status := xerr.GetHTTPStatus(err)
 		ctx.JSON(status, &dto.BaseDTO{Status: status, Message: xerr.GetMessage(err)})
+		return
 	}
 	ctx.File(filePath)
 }
 
-func (b *BackupHandler) DeleteBackups(ctx *gin.Context) (interface{}, error) {
-	filename, err := util.MustGetQueryString(ctx, "filename")
+func (b *BackupHandler) DeleteBackups(ctx web.Context) (interface{}, error) {
+	filename, err := util.MustGetWebQueryString(ctx, "filename")
 	if err != nil {
 		return nil, err
 	}
-	return nil, b.BackupService.DeleteFile(ctx, config.BackupDir, filename)
+	return nil, b.BackupService.DeleteFile(ctx.RequestContext(), config.BackupDir, filename)
 }
 
-func (b *BackupHandler) ImportMarkdown(ctx *gin.Context) (interface{}, error) {
+func (b *BackupHandler) ImportMarkdown(ctx web.Context) (interface{}, error) {
 	fileHeader, err := ctx.FormFile("file")
 	if err != nil {
 		return nil, xerr.WithMsg(err, "上传文件错误").WithStatus(xerr.StatusBadRequest)
@@ -123,58 +129,63 @@ func (b *BackupHandler) ImportMarkdown(ctx *gin.Context) (interface{}, error) {
 	if filenameExt != ".md" && filenameExt != ".markdown" && filenameExt != ".mdown" {
 		return nil, xerr.WithMsg(err, "Unsupported format").WithStatus(xerr.StatusBadRequest)
 	}
-	return nil, b.BackupService.ImportMarkdown(ctx, fileHeader)
+	return nil, b.BackupService.ImportMarkdown(ctx.RequestContext(), fileHeader)
 }
 
-func (b *BackupHandler) ExportData(ctx *gin.Context) (interface{}, error) {
-	return b.BackupService.ExportData(ctx)
+func (b *BackupHandler) ExportData(ctx web.Context) (interface{}, error) {
+	return b.BackupService.ExportData(ctx.RequestContext())
 }
 
-func (b *BackupHandler) HandleData(ctx *gin.Context) {
-	path := ctx.Request.URL.Path
+func (b *BackupHandler) HandleData(ctx web.Context) {
+	path := ctx.Path()
 	if path == "/api/admin/backups/data/fetch" {
-		wrapHandler(b.GetDataBackup)(ctx)
+		data, err := b.GetDataBackup(ctx)
+		respondWithJSONResult(ctx, data, err)
 		return
 	}
 	if path == "/api/admin/backups/data" || path == "/api/admin/backups/data/" {
-		wrapHandler(b.ListExportData)(ctx)
+		data, err := b.ListExportData(ctx)
+		respondWithJSONResult(ctx, data, err)
 		return
 	}
 	b.DownloadData(ctx)
 }
 
-func (b *BackupHandler) ListExportData(ctx *gin.Context) (interface{}, error) {
-	return b.BackupService.ListFiles(ctx, config.DataExportDir, service.JSONData)
+func (b *BackupHandler) ListExportData(ctx web.Context) (interface{}, error) {
+	return b.BackupService.ListFiles(ctx.RequestContext(), config.DataExportDir, service.JSONData)
 }
 
-func (b *BackupHandler) DownloadData(ctx *gin.Context) {
+func (b *BackupHandler) DownloadData(ctx web.Context) {
 	filename := ctx.Param("path")
 	if filename == "" {
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, &dto.BaseDTO{
 			Status:  http.StatusBadRequest,
 			Message: "Filename parameter does not exist",
 		})
+		return
 	}
-	filePath, err := b.BackupService.GetBackupFilePath(ctx, config.DataExportDir, filename)
+	reqCtx := ctx.RequestContext()
+	filePath, err := b.BackupService.GetBackupFilePath(reqCtx, config.DataExportDir, filename)
 	if err != nil {
-		log.CtxErrorf(ctx, "err=%+v", err)
+		log.CtxErrorf(reqCtx, "err=%+v", err)
 		status := xerr.GetHTTPStatus(err)
 		ctx.JSON(status, &dto.BaseDTO{Status: status, Message: xerr.GetMessage(err)})
+		return
 	}
 	ctx.File(filePath)
 }
 
-func (b *BackupHandler) DeleteDataFile(ctx *gin.Context) (interface{}, error) {
-	filename, ok := ctx.GetQuery("filename")
+func (b *BackupHandler) DeleteDataFile(ctx web.Context) (interface{}, error) {
+	filename, ok := ctx.Query("filename")
 	if !ok || filename == "" {
 		return nil, xerr.BadParam.New("no filename param").WithStatus(xerr.StatusBadRequest).WithMsg("no filename param")
 	}
-	return nil, b.BackupService.DeleteFile(ctx, config.DataExportDir, filename)
+	return nil, b.BackupService.DeleteFile(ctx.RequestContext(), config.DataExportDir, filename)
 }
 
-func (b *BackupHandler) ExportMarkdown(ctx *gin.Context) (interface{}, error) {
+func (b *BackupHandler) ExportMarkdown(ctx web.Context) (interface{}, error) {
 	var exportMarkdownParam param.ExportMarkdown
-	err := ctx.ShouldBindJSON(&exportMarkdownParam)
+	err := ctx.BindJSON(&exportMarkdownParam)
 	if err != nil {
 		e := validator.ValidationErrors{}
 		if errors.As(err, &e) {
@@ -182,22 +193,22 @@ func (b *BackupHandler) ExportMarkdown(ctx *gin.Context) (interface{}, error) {
 		}
 		return nil, xerr.WithStatus(err, xerr.StatusBadRequest)
 	}
-	return b.BackupService.ExportMarkdown(ctx, exportMarkdownParam.NeedFrontMatter)
+	return b.BackupService.ExportMarkdown(ctx.RequestContext(), exportMarkdownParam.NeedFrontMatter)
 }
 
-func (b *BackupHandler) ListMarkdowns(ctx *gin.Context) (interface{}, error) {
-	return b.BackupService.ListFiles(ctx, config.BackupMarkdownDir, service.Markdown)
+func (b *BackupHandler) ListMarkdowns(ctx web.Context) (interface{}, error) {
+	return b.BackupService.ListFiles(ctx.RequestContext(), config.BackupMarkdownDir, service.Markdown)
 }
 
-func (b *BackupHandler) DeleteMarkdowns(ctx *gin.Context) (interface{}, error) {
-	filename, err := util.MustGetQueryString(ctx, "filename")
+func (b *BackupHandler) DeleteMarkdowns(ctx web.Context) (interface{}, error) {
+	filename, err := util.MustGetWebQueryString(ctx, "filename")
 	if err != nil {
 		return nil, err
 	}
-	return nil, b.BackupService.DeleteFile(ctx, config.BackupMarkdownDir, filename)
+	return nil, b.BackupService.DeleteFile(ctx.RequestContext(), config.BackupMarkdownDir, filename)
 }
 
-func (b *BackupHandler) DownloadMarkdown(ctx *gin.Context) {
+func (b *BackupHandler) DownloadMarkdown(ctx web.Context) {
 	filename := ctx.Param("filename")
 	if filename == "" {
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, &dto.BaseDTO{
@@ -206,31 +217,37 @@ func (b *BackupHandler) DownloadMarkdown(ctx *gin.Context) {
 		})
 		return
 	}
-	filePath, err := b.BackupService.GetBackupFilePath(ctx, config.BackupMarkdownDir, filename)
+	reqCtx := ctx.RequestContext()
+	filePath, err := b.BackupService.GetBackupFilePath(reqCtx, config.BackupMarkdownDir, filename)
 	if err != nil {
-		log.CtxErrorf(ctx, "err=%+v", err)
+		log.CtxErrorf(reqCtx, "err=%+v", err)
 		status := xerr.GetHTTPStatus(err)
 		ctx.JSON(status, &dto.BaseDTO{Status: status, Message: xerr.GetMessage(err)})
+		return
 	}
 	ctx.File(filePath)
 }
 
-type wrapperHandler func(ctx *gin.Context) (interface{}, error)
+type wrapperHandler func(ctx web.Context) (interface{}, error)
+
+func respondWithJSONResult(ctx web.Context, data interface{}, err error) {
+	if err != nil {
+		log.CtxErrorf(ctx.RequestContext(), "err=%+v", err)
+		status := xerr.GetHTTPStatus(err)
+		ctx.JSON(status, &dto.BaseDTO{Status: status, Message: xerr.GetMessage(err)})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, &dto.BaseDTO{
+		Status:  http.StatusOK,
+		Data:    data,
+		Message: "OK",
+	})
+}
 
 func wrapHandler(handler wrapperHandler) gin.HandlerFunc {
-	return func(ctx *gin.Context) {
+	return ginadapter.Wrap(func(ctx web.Context) {
 		data, err := handler(ctx)
-		if err != nil {
-			log.CtxErrorf(ctx, "err=%+v", err)
-			status := xerr.GetHTTPStatus(err)
-			ctx.JSON(status, &dto.BaseDTO{Status: status, Message: xerr.GetMessage(err)})
-			return
-		}
-
-		ctx.JSON(http.StatusOK, &dto.BaseDTO{
-			Status:  http.StatusOK,
-			Data:    data,
-			Message: "OK",
-		})
-	}
+		respondWithJSONResult(ctx, data, err)
+	})
 }

@@ -3,8 +3,7 @@ package middleware
 import (
 	"net/http"
 
-	"github.com/gin-gonic/gin"
-
+	"github.com/go-sonic/sonic/handler/web"
 	"github.com/go-sonic/sonic/i18n"
 	"github.com/go-sonic/sonic/model/dto"
 	"github.com/go-sonic/sonic/util/xerr"
@@ -43,7 +42,7 @@ func ErrorCodeFromStatus(status int) string {
 	}
 }
 
-func LocalizedHTTPStatusText(ctx *gin.Context, status int) string {
+func LocalizedHTTPStatusText(ctx web.Context, status int) string {
 	switch status {
 	case http.StatusBadRequest:
 		return T(ctx, "error.bad_request", http.StatusText(status))
@@ -58,11 +57,11 @@ func LocalizedHTTPStatusText(ctx *gin.Context, status int) string {
 	}
 }
 
-func T(ctx *gin.Context, key, fallback string) string {
+func T(ctx web.Context, key, fallback string) string {
 	return i18n.T(GetLocale(ctx), key, fallback)
 }
 
-func BuildErrorDTO(ctx *gin.Context, status int, code, message string) *dto.BaseDTO {
+func BuildErrorDTO(ctx web.Context, status int, code, message string) *dto.BaseDTO {
 	if code == "" {
 		code = ErrorCodeFromStatus(status)
 	}
@@ -77,11 +76,11 @@ func BuildErrorDTO(ctx *gin.Context, status int, code, message string) *dto.Base
 	}
 }
 
-func AbortWithErrorJSON(ctx *gin.Context, status int, code, message string) {
+func AbortWithErrorJSON(ctx web.Context, status int, code, message string) {
 	ctx.AbortWithStatusJSON(status, BuildErrorDTO(ctx, status, code, message))
 }
 
-func abortWithStatusJSON(ctx *gin.Context, status int, message string) {
+func abortWithStatusJSON(ctx web.Context, status int, message string) {
 	if message == "" {
 		message = LocalizedHTTPStatusText(ctx, status)
 	}

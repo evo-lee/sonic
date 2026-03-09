@@ -18,6 +18,8 @@ import (
 	"github.com/go-sonic/sonic/handler/content"
 	"github.com/go-sonic/sonic/handler/content/api"
 	"github.com/go-sonic/sonic/handler/middleware"
+	"github.com/go-sonic/sonic/handler/web"
+	"github.com/go-sonic/sonic/handler/web/ginadapter"
 	"github.com/go-sonic/sonic/model/dto"
 	"github.com/go-sonic/sonic/service"
 	"github.com/go-sonic/sonic/template"
@@ -229,11 +231,20 @@ func (s *Server) Run(ctx context.Context) error {
 	return nil
 }
 
-type wrapperHandler func(ctx *gin.Context) (interface{}, error)
-
-func (s *Server) wrapHandler(handler wrapperHandler) gin.HandlerFunc {
-	return func(ctx *gin.Context) {
-		data, err := handler(ctx)
+func (s *Server) wrapHandler(handler any) gin.HandlerFunc {
+	return ginadapter.Wrap(func(ctx web.Context) {
+		var (
+			data any
+			err  error
+		)
+		switch h := handler.(type) {
+		case func(*gin.Context) (interface{}, error):
+			data, err = h(ginadapter.Unwrap(ctx))
+		case func(web.Context) (interface{}, error):
+			data, err = h(ctx)
+		default:
+			panic("unsupported handler type")
+		}
 		if err != nil {
 			status := xerr.GetHTTPStatus(err)
 			code := middleware.ErrorCodeFromError(err)
@@ -247,8 +258,8 @@ func (s *Server) wrapHandler(handler wrapperHandler) gin.HandlerFunc {
 				zap.Int("status", status),
 				zap.String("code", code),
 				zap.String("request_id", requestID),
-				zap.String("method", ctx.Request.Method),
-				zap.String("path", ctx.Request.URL.Path),
+				zap.String("method", ctx.Method()),
+				zap.String("path", ctx.Path()),
 			)
 			ctx.JSON(status, middleware.BuildErrorDTO(ctx, status, code, message))
 			return
@@ -259,7 +270,7 @@ func (s *Server) wrapHandler(handler wrapperHandler) gin.HandlerFunc {
 			Data:    data,
 			Message: middleware.T(ctx, "common.ok", "OK"),
 		})
-	}
+	})
 }
 
 type wrapperHTMLHandler func(ctx *gin.Context, model template.Model) (templateName string, err error)
@@ -270,9 +281,10 @@ var (
 )
 
 func (s *Server) wrapHTMLHandler(handler wrapperHTMLHandler) gin.HandlerFunc {
-	return func(ctx *gin.Context) {
+	return ginadapter.Wrap(func(ctx web.Context) {
+		ginCtx := ginadapter.Unwrap(ctx)
 		model := template.Model{}
-		templateName, err := handler(ctx, model)
+		templateName, err := handler(ginCtx, model)
 		if err != nil {
 			s.handleError(ctx, err)
 			return
@@ -280,37 +292,38 @@ func (s *Server) wrapHTMLHandler(handler wrapperHTMLHandler) gin.HandlerFunc {
 		if templateName == "" {
 			return
 		}
-		header := ctx.Writer.Header()
+		header := ginCtx.Writer.Header()
 		if val := header["Content-Type"]; len(val) == 0 {
 			header["Content-Type"] = htmlContentType
 		}
-		err = s.Template.ExecuteTemplate(ctx.Writer, templateName, model)
+		err = s.Template.ExecuteTemplate(ginCtx.Writer, templateName, model)
 		if err != nil {
 			s.logger.Error("render template err", zap.Error(err))
 		}
-	}
+	})
 }
 
 func (s *Server) wrapTextHandler(handler wrapperHTMLHandler) gin.HandlerFunc {
-	return func(ctx *gin.Context) {
+	return ginadapter.Wrap(func(ctx web.Context) {
+		ginCtx := ginadapter.Unwrap(ctx)
 		model := template.Model{}
-		templateName, err := handler(ctx, model)
+		templateName, err := handler(ginCtx, model)
 		if err != nil {
 			s.handleError(ctx, err)
 			return
 		}
-		header := ctx.Writer.Header()
+		header := ginCtx.Writer.Header()
 		if val := header["Content-Type"]; len(val) == 0 {
 			header["Content-Type"] = xmlContentType
 		}
-		err = s.Template.ExecuteTextTemplate(ctx.Writer, templateName, model)
+		err = s.Template.ExecuteTextTemplate(ginCtx.Writer, templateName, model)
 		if err != nil {
 			s.logger.Error("render template err", zap.Error(err))
 		}
-	}
+	})
 }
 
-func (s *Server) handleError(ctx *gin.Context, err error) {
+func (s *Server) handleError(ctx web.Context, err error) {
 	status := xerr.GetHTTPStatus(err)
 	message := xerr.GetMessage(err)
 	if message == "" || message == http.StatusText(status) {
@@ -320,18 +333,19 @@ func (s *Server) handleError(ctx *gin.Context, err error) {
 		zap.Error(err),
 		zap.Int("status", status),
 		zap.String("request_id", middleware.GetRequestID(ctx)),
-		zap.String("method", ctx.Request.Method),
-		zap.String("path", ctx.Request.URL.Path),
+		zap.String("method", ctx.Method()),
+		zap.String("path", ctx.Path()),
 	)
 	model := template.Model{}
 
-	templateName, _ := s.ThemeService.Render(ctx, strconv.Itoa(status))
+	templateName, _ := s.ThemeService.Render(ctx.RequestContext(), strconv.Itoa(status))
 	t := s.Template.HTMLTemplate.Lookup(templateName)
 	if t == nil {
 		templateName = "common/error/error"
 	}
 
-	header := ctx.Writer.Header()
+	ginCtx := ginadapter.Unwrap(ctx)
+	header := ginCtx.Writer.Header()
 	if val := header["Content-Type"]; len(val) == 0 {
 		header["Content-Type"] = htmlContentType
 	}
@@ -345,7 +359,7 @@ func (s *Server) handleError(ctx *gin.Context, err error) {
 	model["error_default_message"] = middleware.T(ctx, "error.default_message", "Unknown error")
 	model["back_home_label"] = middleware.T(ctx, "common.home", "Home")
 
-	err = s.Template.ExecuteTemplate(ctx.Writer, templateName, model)
+	err = s.Template.ExecuteTemplate(ginCtx.Writer, templateName, model)
 	if err != nil {
 		s.logger.Error("render error template err", zap.Error(err))
 	}
