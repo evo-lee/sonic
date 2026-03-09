@@ -5,8 +5,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/gin-contrib/cors"
-	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -16,40 +14,32 @@ import (
 	"github.com/go-sonic/sonic/dal"
 	"github.com/go-sonic/sonic/handler/middleware"
 	"github.com/go-sonic/sonic/handler/web"
-	"github.com/go-sonic/sonic/handler/web/ginadapter"
 )
 
 func (s *Server) RegisterRouters() {
 	router := s.Router
 	if config.IsDev() {
-		router.Use(cors.New(cors.Config{
-			AllowAllOrigins:  true,
-			AllowOrigins:     []string{},
-			AllowMethods:     []string{"PUT", "PATCH", "GET", "DELETE", "POST", "OPTIONS"},
-			AllowHeaders:     []string{"Origin", "Admin-Authorization", "Content-Type"},
-			AllowCredentials: true,
-			ExposeHeaders:    []string{"Content-Length"},
-		}))
+		router.Use(middleware.NewDevCORSMiddleware().Handler())
 	}
-	router.Use(s.LocaleMiddleware.Locale(), s.RequestIDMiddleware.RequestID())
+	router.Use(s.LocaleMiddleware.Handler(), s.RequestIDMiddleware.Handler())
 
 	{
-		router.GET("/ping", func(ctx *gin.Context) {
-			_, _ = ctx.Writer.Write([]byte("pong"))
+		router.GET("/ping", func(ctx web.Context) {
+			_, _ = ctx.Writer().Write([]byte("pong"))
 		})
 		{
 			staticRouter := router.Group("/")
-			staticRouter.StaticFS(s.Config.Sonic.AdminURLPath, gin.Dir(s.Config.Sonic.AdminResourcesDir, false))
-			staticRouter.StaticFS("/css", gin.Dir(filepath.Join(s.Config.Sonic.AdminResourcesDir, "css"), false))
-			staticRouter.StaticFS("/js", gin.Dir(filepath.Join(s.Config.Sonic.AdminResourcesDir, "js"), false))
-			staticRouter.StaticFS("/images", gin.Dir(filepath.Join(s.Config.Sonic.AdminResourcesDir, "images"), false))
-			staticRouter.Use(middleware.NewCacheControlMiddleware(middleware.WithMaxAge(time.Hour*24*7)).CacheControl()).
-				StaticFS(consts.SonicUploadDir, gin.Dir(s.Config.Sonic.UploadDir, false))
-			staticRouter.StaticFS("/themes/", gin.Dir(s.Config.Sonic.ThemeDir, false))
+			staticRouter.StaticFS(s.Config.Sonic.AdminURLPath, s.Config.Sonic.AdminResourcesDir)
+			staticRouter.StaticFS("/css", filepath.Join(s.Config.Sonic.AdminResourcesDir, "css"))
+			staticRouter.StaticFS("/js", filepath.Join(s.Config.Sonic.AdminResourcesDir, "js"))
+			staticRouter.StaticFS("/images", filepath.Join(s.Config.Sonic.AdminResourcesDir, "images"))
+			staticUploadRouter := staticRouter.Group("", middleware.NewCacheControlMiddleware(middleware.WithMaxAge(time.Hour*24*7)).Handler())
+			staticUploadRouter.StaticFS(consts.SonicUploadDir, s.Config.Sonic.UploadDir)
+			staticRouter.StaticFS("/themes/", s.Config.Sonic.ThemeDir)
 		}
 		{
 			adminAPIRouter := router.Group("/api/admin")
-			adminAPIRouter.Use(s.LogMiddleware.LoggerWithConfig(middleware.GinLoggerConfig{}), s.RecoveryMiddleware.RecoveryWithLogger(), s.InstallRedirectMiddleware.InstallRedirect())
+			adminAPIRouter.Use(s.LogMiddleware.HandlerWithConfig(middleware.LoggerConfig{}), s.RecoveryMiddleware.Handler(), s.InstallRedirectMiddleware.Handler())
 			adminAPIRouter.GET("/is_installed", s.wrapHandler(s.AdminHandler.IsInstalled))
 			adminAPIRouter.POST("/login/precheck", s.wrapHandler(s.AdminHandler.AuthPreCheck))
 			adminAPIRouter.POST("/login", s.wrapHandler(s.AdminHandler.Auth))
@@ -57,7 +47,7 @@ func (s *Server) RegisterRouters() {
 			adminAPIRouter.POST("/installations", s.wrapHandler(s.InstallHandler.InstallBlog))
 			{
 				authRouter := adminAPIRouter.Group("")
-				authRouter.Use(s.AuthMiddleware.GetWrapHandler())
+				authRouter.Use(s.AuthMiddleware.Handler())
 				authRouter.POST("/logout", s.wrapHandler(s.AdminHandler.LogOut))
 				authRouter.POST("/password/code", s.wrapHandler(s.AdminHandler.SendResetCode))
 				authRouter.GET("/environments", s.wrapHandler(s.AdminHandler.GetEnvironments))
@@ -78,23 +68,17 @@ func (s *Server) RegisterRouters() {
 					backupRouter := authRouter.Group("/backups")
 					backupRouter.POST("/work-dir", s.wrapHandler(s.BackupHandler.BackupWholeSite))
 					backupRouter.GET("/work-dir", s.wrapHandler(s.BackupHandler.ListBackups))
-					backupRouter.GET("/work-dir/*path", ginadapter.Wrap(func(ctx web.Context) {
-						s.BackupHandler.HandleWorkDir(ctx)
-					}))
+					backupRouter.GET("/work-dir/*path", s.BackupHandler.HandleWorkDir)
 					backupRouter.DELETE("/work-dir", s.wrapHandler(s.BackupHandler.DeleteBackups))
 					backupRouter.POST("/data", s.wrapHandler(s.BackupHandler.ExportData))
 					backupRouter.DELETE("/data", s.wrapHandler(s.BackupHandler.DeleteDataFile))
-					backupRouter.GET("/data/*path", ginadapter.Wrap(func(ctx web.Context) {
-						s.BackupHandler.HandleData(ctx)
-					}))
+					backupRouter.GET("/data/*path", s.BackupHandler.HandleData)
 					backupRouter.POST("/markdown/export", s.wrapHandler(s.BackupHandler.ExportMarkdown))
 					backupRouter.POST("/markdown/import", s.wrapHandler(s.BackupHandler.ImportMarkdown))
 					backupRouter.GET("/markdown/fetch", s.wrapHandler(s.BackupHandler.GetMarkDownBackup))
 					backupRouter.GET("/markdown/export", s.wrapHandler(s.BackupHandler.ListMarkdowns))
 					backupRouter.DELETE("/markdown/export", s.wrapHandler(s.BackupHandler.DeleteMarkdowns))
-					backupRouter.GET("/markdown/export/:filename", ginadapter.Wrap(func(ctx web.Context) {
-						s.BackupHandler.DownloadMarkdown(ctx)
-					}))
+					backupRouter.GET("/markdown/export/:filename", s.BackupHandler.DownloadMarkdown)
 				}
 				{
 					categoryRouter := authRouter.Group("/categories")
@@ -119,9 +103,7 @@ func (s *Server) RegisterRouters() {
 					postRouter.PUT("/:postID/status/draft/content", s.wrapHandler(s.PostHandler.UpdatePostDraft))
 					postRouter.DELETE("/:postID", s.wrapHandler(s.PostHandler.DeletePost))
 					postRouter.DELETE("", s.wrapHandler(s.PostHandler.DeletePostBatch))
-					postRouter.GET("/:postID/preview", ginadapter.Wrap(func(ctx web.Context) {
-						s.PostHandler.PreviewPost(ctx)
-					}))
+					postRouter.GET("/:postID/preview", s.PostHandler.PreviewPost)
 					{
 						postCommentRouter := postRouter.Group("/comments")
 						postCommentRouter.GET("", s.wrapHandler(s.PostCommentHandler.ListPostComment))
@@ -164,9 +146,7 @@ func (s *Server) RegisterRouters() {
 					sheetRouter.PUT("/:sheetID/:status", s.wrapHandler(s.SheetHandler.UpdateSheetStatus))
 					sheetRouter.PUT("/:sheetID/status/draft/content", s.wrapHandler(s.SheetHandler.UpdateSheetDraft))
 					sheetRouter.DELETE("/:sheetID", s.wrapHandler(s.SheetHandler.DeleteSheet))
-					sheetRouter.GET("/preview/:sheetID", ginadapter.Wrap(func(ctx web.Context) {
-						s.SheetHandler.PreviewSheet(ctx)
-					}))
+					sheetRouter.GET("/preview/:sheetID", s.SheetHandler.PreviewSheet)
 					sheetRouter.GET("/independent", s.wrapHandler(s.SheetHandler.IndependentSheets))
 					{
 						sheetCommentRouter := sheetRouter.Group("/comments")
@@ -292,7 +272,7 @@ func (s *Server) RegisterRouters() {
 		}
 		{
 			contentRouter := router.Group("")
-			contentRouter.Use(s.LogMiddleware.LoggerWithConfig(middleware.GinLoggerConfig{}), s.RecoveryMiddleware.RecoveryWithLogger(), s.InstallRedirectMiddleware.InstallRedirect())
+			contentRouter.Use(s.LogMiddleware.HandlerWithConfig(middleware.LoggerConfig{}), s.RecoveryMiddleware.Handler(), s.InstallRedirectMiddleware.Handler())
 
 			contentRouter.POST("/content/:type/:slug/authentication", s.wrapHTMLHandler(s.ViewHandler.Authenticate))
 
@@ -311,9 +291,7 @@ func (s *Server) RegisterRouters() {
 			contentRouter.GET("/sitemap.html", s.wrapHTMLHandler(s.FeedHandler.SitemapHTML))
 
 			contentRouter.GET("/version", s.wrapHandler(s.ViewHandler.Version))
-			contentRouter.GET("/install", ginadapter.Wrap(func(ctx web.Context) {
-				s.ViewHandler.Install(ctx)
-			}))
+			contentRouter.GET("/install", s.ViewHandler.Install)
 			contentRouter.GET("/logo", s.wrapHandler(s.ViewHandler.Logo))
 			contentRouter.GET("/favicon", s.wrapHandler(s.ViewHandler.Favicon))
 			contentRouter.GET("/search", s.wrapHTMLHandler(s.ContentSearchHandler.Search))
@@ -325,7 +303,7 @@ func (s *Server) RegisterRouters() {
 		}
 		{
 			contentAPIRouter := router.Group("/api/content")
-			contentAPIRouter.Use(s.LogMiddleware.LoggerWithConfig(middleware.GinLoggerConfig{}), s.RecoveryMiddleware.RecoveryWithLogger())
+			contentAPIRouter.Use(s.LogMiddleware.HandlerWithConfig(middleware.LoggerConfig{}), s.RecoveryMiddleware.Handler())
 
 			contentAPIRouter.GET("/archives/years", s.wrapHandler(s.ContentAPIArchiveHandler.ListYearArchives))
 			contentAPIRouter.GET("/archives/months", s.wrapHandler(s.ContentAPIArchiveHandler.ListMonthArchives))
@@ -367,7 +345,7 @@ func (s *Server) RegisterRouters() {
 	}
 }
 
-func (s *Server) registerDynamicRouters(contentRouter *gin.RouterGroup) error {
+func (s *Server) registerDynamicRouters(contentRouter web.Router) error {
 	ctx := context.Background()
 	ctx = dal.SetCtxQuery(ctx, dal.GetQueryByCtx(ctx).ReplaceDB(dal.GetDB().Session(
 		&gorm.Session{Logger: dal.DB.Logger.LogMode(logger.Warn)},

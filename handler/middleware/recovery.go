@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 
+	"github.com/go-sonic/sonic/handler/web"
 	"github.com/go-sonic/sonic/handler/web/ginadapter"
 )
 
@@ -24,10 +25,13 @@ func NewRecoveryMiddleware(logger *zap.Logger) *RecoveryMiddleware {
 }
 
 func (r *RecoveryMiddleware) RecoveryWithLogger() gin.HandlerFunc {
+	return ginadapter.Wrap(r.Handler())
+}
+
+func (r *RecoveryMiddleware) Handler() web.HandlerFunc {
 	logger := r.logger.WithOptions(zap.AddCallerSkip(2))
 
-	return func(ctx *gin.Context) {
-		webCtx := ginadapter.NewContext(ctx)
+	return func(ctx web.Context) {
 		defer func() {
 			if panicVal := recover(); panicVal != nil {
 				var recoveredErr error
@@ -51,26 +55,24 @@ func (r *RecoveryMiddleware) RecoveryWithLogger() gin.HandlerFunc {
 				}
 
 				if brokenPipe {
-					logger.Error(ctx.Request.URL.Path,
+					logger.Error(ctx.Path(),
 						zap.Error(recoveredErr),
-						zap.String("request_id", GetRequestID(webCtx)),
+						zap.String("request_id", GetRequestID(ctx)),
 					)
 				} else {
 					logger.Error("[Recovery] panic recovered",
 						zap.Error(recoveredErr),
-						zap.String("request_id", GetRequestID(webCtx)),
-						zap.String("method", ctx.Request.Method),
-						zap.String("path", ctx.Request.URL.Path),
+						zap.String("request_id", GetRequestID(ctx)),
+						zap.String("method", ctx.Method()),
+						zap.String("path", ctx.Path()),
 					)
 				}
 
 				if brokenPipe {
-					// If the connection is dead, we can't write a status to it.
-					ctx.Error(recoveredErr) // nolint: errcheck
 					ctx.Abort()
 				} else {
 					code := http.StatusInternalServerError
-					AbortWithErrorJSON(webCtx, code, ErrorCodeFromStatus(code), LocalizedHTTPStatusText(webCtx, code))
+					AbortWithErrorJSON(ctx, code, ErrorCodeFromStatus(code), LocalizedHTTPStatusText(ctx, code))
 				}
 			}
 		}()

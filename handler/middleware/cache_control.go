@@ -5,6 +5,9 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+
+	"github.com/go-sonic/sonic/handler/web"
+	"github.com/go-sonic/sonic/handler/web/ginadapter"
 )
 
 type CacheControlMiddleware struct {
@@ -23,6 +26,10 @@ func NewCacheControlMiddleware(opts ...CacheControlOption) *CacheControlMiddlewa
 }
 
 func (c *CacheControlMiddleware) CacheControl() gin.HandlerFunc {
+	return ginadapter.Wrap(c.Handler())
+}
+
+func (c *CacheControlMiddleware) Handler() web.HandlerFunc {
 	value := ""
 	if c.Public {
 		value = "public,"
@@ -30,8 +37,8 @@ func (c *CacheControlMiddleware) CacheControl() gin.HandlerFunc {
 	if c.MaxAge > 0 {
 		value = "max-age=" + strconv.FormatInt(int64(c.MaxAge.Seconds()), 10)
 	}
-	return func(ctx *gin.Context) {
-		ctx.Header("Cache-Control", value)
+	return func(ctx web.Context) {
+		ctx.SetHeader("Cache-Control", value)
 	}
 }
 

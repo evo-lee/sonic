@@ -3,10 +3,9 @@ package content
 import (
 	"html"
 
-	"github.com/gin-gonic/gin"
-
 	"github.com/go-sonic/sonic/consts"
 	"github.com/go-sonic/sonic/handler/binding"
+	"github.com/go-sonic/sonic/handler/web"
 	"github.com/go-sonic/sonic/model/dto"
 	"github.com/go-sonic/sonic/model/param"
 	"github.com/go-sonic/sonic/model/property"
@@ -38,25 +37,25 @@ func NewSearchHandler(
 	}
 }
 
-func (s *SearchHandler) Search(ctx *gin.Context, model template.Model) (string, error) {
+func (s *SearchHandler) Search(ctx web.Context, model template.Model) (string, error) {
 	return s.search(ctx, 0, model)
 }
 
-func (s *SearchHandler) PageSearch(ctx *gin.Context, model template.Model) (string, error) {
-	page, err := util.ParamInt32(ctx, "page")
+func (s *SearchHandler) PageSearch(ctx web.Context, model template.Model) (string, error) {
+	page, err := util.ParamWebInt32(ctx, "page")
 	if err != nil {
 		return "", err
 	}
 	return s.search(ctx, int(page)-1, model)
 }
 
-func (s *SearchHandler) search(ctx *gin.Context, pageNum int, model template.Model) (string, error) {
-	keyword, err := util.MustGetQueryString(ctx, "keyword")
+func (s *SearchHandler) search(ctx web.Context, pageNum int, model template.Model) (string, error) {
+	keyword, err := util.MustGetWebQueryString(ctx, "keyword")
 	if err != nil {
 		return "", err
 	}
 	sort := param.Sort{}
-	err = ctx.ShouldBindWith(&sort, binding.CustomFormBinding)
+	err = ctx.BindWith(&sort, binding.CustomFormBinding)
 	if err != nil {
 		return "", xerr.WithStatus(err, xerr.StatusBadRequest).WithMsg("Parameter error")
 	}

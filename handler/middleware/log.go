@@ -7,28 +7,33 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 
+	"github.com/go-sonic/sonic/handler/web"
 	"github.com/go-sonic/sonic/handler/web/ginadapter"
 )
 
-type GinLoggerMiddleware struct {
+type LoggerMiddleware struct {
 	logger *zap.Logger
 }
 
-func NewGinLoggerMiddleware(logger *zap.Logger) *GinLoggerMiddleware {
-	return &GinLoggerMiddleware{
+func NewLoggerMiddleware(logger *zap.Logger) *LoggerMiddleware {
+	return &LoggerMiddleware{
 		logger: logger,
 	}
 }
 
-// GinLoggerConfig LoggerConfig defines the config for Logger middleware
-type GinLoggerConfig struct {
+// LoggerConfig defines the config for Logger middleware
+type LoggerConfig struct {
 	// SkipPaths is an url path array which logs are not written.
 	// Optional.
 	SkipPaths []string
 }
 
 // LoggerWithConfig instance a Logger middleware with config.
-func (g *GinLoggerMiddleware) LoggerWithConfig(conf GinLoggerConfig) gin.HandlerFunc {
+func (g *LoggerMiddleware) LoggerWithConfig(conf LoggerConfig) gin.HandlerFunc {
+	return ginadapter.Wrap(g.HandlerWithConfig(conf))
+}
+
+func (g *LoggerMiddleware) HandlerWithConfig(conf LoggerConfig) web.HandlerFunc {
 	logger := g.logger.WithOptions(zap.WithCaller(false))
 	notLogged := conf.SkipPaths
 
@@ -42,22 +47,15 @@ func (g *GinLoggerMiddleware) LoggerWithConfig(conf GinLoggerConfig) gin.Handler
 		}
 	}
 
-	return func(ctx *gin.Context) {
-		webCtx := ginadapter.NewContext(ctx)
+	return func(ctx web.Context) {
 		// Start timer
 		start := time.Now()
-		path := ctx.Request.URL.Path
-		raw := ctx.Request.URL.RawQuery
+		path := ctx.Path()
+		raw := ctx.RawQuery()
 
 		// Process request
 		ctx.Next()
 
-		if len(ctx.Errors) > 0 {
-			logger.Error("gin private errors",
-				zap.String("errors", ctx.Errors.ByType(gin.ErrorTypePrivate).String()),
-				zap.String("request_id", GetRequestID(webCtx)),
-			)
-		}
 		// Log only when path is not being skipped
 		if _, ok := skip[path]; !ok {
 			if raw != "" {
@@ -68,14 +66,14 @@ func (g *GinLoggerMiddleware) LoggerWithConfig(conf GinLoggerConfig) gin.Handler
 			clientIP := strings.ReplaceAll(ctx.ClientIP(), "\n", "")
 			clientIP = strings.ReplaceAll(clientIP, "\r", "")
 
-			logger.Info("[GIN]",
+			logger.Info("[HTTP]",
 				zap.Time("beginTime", start),
-				zap.Int("status", ctx.Writer.Status()),
+				zap.Int("status", ctx.StatusCode()),
 				zap.Duration("latency", time.Since(start)),
 				zap.String("clientIP", clientIP),
-				zap.String("method", ctx.Request.Method),
+				zap.String("method", ctx.Method()),
 				zap.String("path", path),
-				zap.String("request_id", GetRequestID(webCtx)))
+				zap.String("request_id", GetRequestID(ctx)))
 		}
 	}
 }

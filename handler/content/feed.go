@@ -7,9 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gin-gonic/gin"
-
 	"github.com/go-sonic/sonic/consts"
+	"github.com/go-sonic/sonic/handler/web"
 	"github.com/go-sonic/sonic/model/entity"
 	"github.com/go-sonic/sonic/model/param"
 	"github.com/go-sonic/sonic/model/property"
@@ -38,25 +37,25 @@ func NewFeedHandler(optionService service.OptionService, postService service.Pos
 	}
 }
 
-func (f *FeedHandler) Feed(ctx *gin.Context, model template.Model) (string, error) {
+func (f *FeedHandler) Feed(ctx web.Context, model template.Model) (string, error) {
 	_, err := f.Atom(ctx, model)
 	if err != nil {
 		return "", err
 	}
-	ctx.Header("Content-Type", "application/xml; charset=utf-8")
+	ctx.SetHeader("Content-Type", "application/xml; charset=utf-8")
 	return "common/web/rss", nil
 }
 
-func (f *FeedHandler) CategoryFeed(ctx *gin.Context, model template.Model) (string, error) {
+func (f *FeedHandler) CategoryFeed(ctx web.Context, model template.Model) (string, error) {
 	_, err := f.CategoryAtom(ctx, model)
 	if err != nil {
 		return "", err
 	}
-	ctx.Header("Content-Type", "application/xml; charset=utf-8")
+	ctx.SetHeader("Content-Type", "application/xml; charset=utf-8")
 	return "common/web/rss", nil
 }
 
-func (f *FeedHandler) Atom(ctx *gin.Context, model template.Model) (string, error) {
+func (f *FeedHandler) Atom(ctx web.Context, model template.Model) (string, error) {
 	rssPageSize := f.OptionService.GetOrByDefault(ctx, property.RssPageSize).(int)
 	postQuery := param.PostQuery{
 		Page:     param.Page{PageNum: 0, PageSize: rssPageSize},
@@ -72,15 +71,15 @@ func (f *FeedHandler) Atom(ctx *gin.Context, model template.Model) (string, erro
 		return "", err
 	}
 	lastModified := f.getLastModifiedTime(posts)
-	ctx.Header("Last-Modified", lastModified.Format(http.TimeFormat))
-	ctx.Header("Content-Type", "application/xml; charset=utf-8")
+	ctx.SetHeader("Last-Modified", lastModified.Format(http.TimeFormat))
+	ctx.SetHeader("Content-Type", "application/xml; charset=utf-8")
 	model["lastModified"] = lastModified
 	model["posts"] = postDetailVOs
 	return "common/web/atom", nil
 }
 
-func (f *FeedHandler) CategoryAtom(ctx *gin.Context, model template.Model) (string, error) {
-	slug, err := util.ParamString(ctx, "slug")
+func (f *FeedHandler) CategoryAtom(ctx web.Context, model template.Model) (string, error) {
+	slug, err := util.ParamWebString(ctx, "slug")
 	if err != nil {
 		return "", err
 	}
@@ -108,16 +107,16 @@ func (f *FeedHandler) CategoryAtom(ctx *gin.Context, model template.Model) (stri
 	model["category"] = categoryDTO
 	model["posts"] = postDetailVOs
 	model["lastModified"] = lastModified
-	ctx.Header("Content-Type", "application/xml; charset=utf-8")
+	ctx.SetHeader("Content-Type", "application/xml; charset=utf-8")
 	return "common/web/atom", nil
 }
 
-func (f *FeedHandler) Robots(ctx *gin.Context, model template.Model) (string, error) {
-	ctx.Header("Content-Type", "text/plain;charset=utf-8")
+func (f *FeedHandler) Robots(ctx web.Context, model template.Model) (string, error) {
+	ctx.SetHeader("Content-Type", "text/plain;charset=utf-8")
 	return "common/web/robots", nil
 }
 
-func (f *FeedHandler) SitemapXML(ctx *gin.Context, model template.Model) (string, error) {
+func (f *FeedHandler) SitemapXML(ctx web.Context, model template.Model) (string, error) {
 	posts, _, err := f.PostService.Page(ctx, param.PostQuery{
 		Page:     param.Page{PageNum: 0, PageSize: int(^uint(0) >> 1)},
 		Sort:     &param.Sort{Fields: []string{"createTime,desc"}},
@@ -132,11 +131,11 @@ func (f *FeedHandler) SitemapXML(ctx *gin.Context, model template.Model) (string
 	}
 	model["posts"] = postDetailVOs
 
-	ctx.Header("Content-Type", "application/xml; charset=utf-8")
+	ctx.SetHeader("Content-Type", "application/xml; charset=utf-8")
 	return "common/web/sitemap_xml", nil
 }
 
-func (f *FeedHandler) SitemapHTML(ctx *gin.Context, model template.Model) (string, error) {
+func (f *FeedHandler) SitemapHTML(ctx web.Context, model template.Model) (string, error) {
 	posts, _, err := f.PostService.Page(ctx, param.PostQuery{
 		Page:     param.Page{PageNum: 0, PageSize: int(^uint(0) >> 1)},
 		Sort:     &param.Sort{Fields: []string{"createTime,desc"}},

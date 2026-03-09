@@ -1,10 +1,9 @@
 package content
 
 import (
-	"github.com/gin-gonic/gin"
-
 	"github.com/go-sonic/sonic/cache"
 	"github.com/go-sonic/sonic/handler/content/model"
+	"github.com/go-sonic/sonic/handler/web"
 	"github.com/go-sonic/sonic/service"
 	"github.com/go-sonic/sonic/template"
 	"github.com/go-sonic/sonic/util"
@@ -32,8 +31,8 @@ func NewSheetHandler(
 	}
 }
 
-func (s *SheetHandler) SheetBySlug(ctx *gin.Context, model template.Model) (string, error) {
-	slug, err := util.ParamString(ctx, "slug")
+func (s *SheetHandler) SheetBySlug(ctx web.Context, model template.Model) (string, error) {
+	slug, err := util.ParamWebString(ctx, "slug")
 	if err != nil {
 		return "", err
 	}
@@ -45,13 +44,13 @@ func (s *SheetHandler) SheetBySlug(ctx *gin.Context, model template.Model) (stri
 	return s.SheetModel.Content(ctx, sheet, token, model)
 }
 
-func (s *SheetHandler) AdminSheetBySlug(ctx *gin.Context, model template.Model) (string, error) {
-	slug, err := util.ParamString(ctx, "slug")
+func (s *SheetHandler) AdminSheetBySlug(ctx web.Context, model template.Model) (string, error) {
+	slug, err := util.ParamWebString(ctx, "slug")
 	if err != nil {
 		return "", err
 	}
 
-	token, err := util.MustGetQueryString(ctx, "token")
+	token, err := util.MustGetWebQueryString(ctx, "token")
 	if err != nil {
 		return "", err
 	}

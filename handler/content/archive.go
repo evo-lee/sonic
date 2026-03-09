@@ -3,11 +3,10 @@ package content
 import (
 	"strconv"
 
-	"github.com/gin-gonic/gin"
-
 	"github.com/go-sonic/sonic/cache"
 	"github.com/go-sonic/sonic/consts"
 	"github.com/go-sonic/sonic/handler/content/model"
+	"github.com/go-sonic/sonic/handler/web"
 	"github.com/go-sonic/sonic/model/entity"
 	"github.com/go-sonic/sonic/service"
 	"github.com/go-sonic/sonic/service/assembler"
@@ -46,20 +45,20 @@ func NewArchiveHandler(
 	}
 }
 
-func (a *ArchiveHandler) Archives(ctx *gin.Context, model template.Model) (string, error) {
+func (a *ArchiveHandler) Archives(ctx web.Context, model template.Model) (string, error) {
 	return a.PostModel.Archives(ctx, 0, model)
 }
 
-func (a *ArchiveHandler) ArchivesPage(ctx *gin.Context, model template.Model) (string, error) {
-	page, err := util.ParamInt32(ctx, "page")
+func (a *ArchiveHandler) ArchivesPage(ctx web.Context, model template.Model) (string, error) {
+	page, err := util.ParamWebInt32(ctx, "page")
 	if err != nil {
 		return "", err
 	}
 	return a.PostModel.Archives(ctx, int(page-1), model)
 }
 
-func (a *ArchiveHandler) ArchivesBySlug(ctx *gin.Context, model template.Model) (string, error) {
-	slug, err := util.ParamString(ctx, "slug")
+func (a *ArchiveHandler) ArchivesBySlug(ctx web.Context, model template.Model) (string, error) {
+	slug, err := util.ParamWebString(ctx, "slug")
 	if err != nil {
 		return "", err
 	}
@@ -89,12 +88,12 @@ func (a *ArchiveHandler) ArchivesBySlug(ctx *gin.Context, model template.Model) 
 }
 
 // AdminArchivesBySlug It can only be used in the console  to preview articles
-func (a *ArchiveHandler) AdminArchivesBySlug(ctx *gin.Context, model template.Model) (string, error) {
-	slug, err := util.ParamString(ctx, "slug")
+func (a *ArchiveHandler) AdminArchivesBySlug(ctx web.Context, model template.Model) (string, error) {
+	slug, err := util.ParamWebString(ctx, "slug")
 	if err != nil {
 		return "", err
 	}
-	token, err := util.MustGetQueryString(ctx, "token")
+	token, err := util.MustGetWebQueryString(ctx, "token")
 	if err != nil {
 		return "", err
 	}

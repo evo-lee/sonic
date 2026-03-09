@@ -3,8 +3,6 @@ package content
 import (
 	"net/http"
 
-	"github.com/gin-gonic/gin"
-
 	"github.com/go-sonic/sonic/consts"
 	"github.com/go-sonic/sonic/handler/binding"
 	"github.com/go-sonic/sonic/handler/content/authentication"
@@ -82,18 +80,18 @@ func (v *ViewHandler) Favicon(ctx web.Context) (interface{}, error) {
 	return nil, nil
 }
 
-func (v *ViewHandler) Authenticate(ctx *gin.Context, model template.Model) (string, error) {
-	contentType, err := util.ParamString(ctx, "type")
+func (v *ViewHandler) Authenticate(ctx web.Context, model template.Model) (string, error) {
+	contentType, err := util.ParamWebString(ctx, "type")
 	if err != nil {
 		return v.authenticateErr(ctx, model, contentType, "", err)
 	}
-	slug, err := util.ParamString(ctx, "slug")
+	slug, err := util.ParamWebString(ctx, "slug")
 	if err != nil {
 		return v.authenticateErr(ctx, model, contentType, slug, err)
 	}
 
 	var authenticationParam param.Authentication
-	err = ctx.ShouldBindWith(&authenticationParam, binding.CustomFormBinding)
+	err = ctx.BindWith(&authenticationParam, binding.CustomFormBinding)
 	if err != nil {
 		return v.authenticateErr(ctx, model, "post", slug, err)
 	}
@@ -118,7 +116,7 @@ func (v *ViewHandler) Authenticate(ctx *gin.Context, model template.Model) (stri
 	return "", nil
 }
 
-func (v *ViewHandler) authenticateCategory(ctx *gin.Context, slug, password, token string) (string, error) {
+func (v *ViewHandler) authenticateCategory(ctx web.Context, slug, password, token string) (string, error) {
 	category, err := v.CategoryService.GetBySlug(ctx, slug)
 	if err != nil {
 		return "", err
@@ -137,7 +135,7 @@ func (v *ViewHandler) authenticateCategory(ctx *gin.Context, slug, password, tok
 	return token, nil
 }
 
-func (v *ViewHandler) authenticatePost(ctx *gin.Context, slug, password, token string) (string, error) {
+func (v *ViewHandler) authenticatePost(ctx web.Context, slug, password, token string) (string, error) {
 	post, err := v.PostService.GetBySlug(ctx, slug)
 	if err != nil {
 		return "", err
@@ -155,7 +153,7 @@ func (v *ViewHandler) authenticatePost(ctx *gin.Context, slug, password, token s
 	return token, nil
 }
 
-func (v *ViewHandler) authenticateErr(ctx *gin.Context, model template.Model, aType string, slug string, err error) (string, error) {
+func (v *ViewHandler) authenticateErr(ctx web.Context, model template.Model, aType string, slug string, err error) (string, error) {
 	model["type"] = aType
 	model["slug"] = slug
 	model["errorMsg"] = xerr.GetMessage(err)

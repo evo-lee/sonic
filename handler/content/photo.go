@@ -1,9 +1,8 @@
 package content
 
 import (
-	"github.com/gin-gonic/gin"
-
 	"github.com/go-sonic/sonic/handler/content/model"
+	"github.com/go-sonic/sonic/handler/web"
 	"github.com/go-sonic/sonic/service"
 	"github.com/go-sonic/sonic/template"
 	"github.com/go-sonic/sonic/util"
@@ -27,14 +26,14 @@ func NewPhotoHandler(
 	}
 }
 
-func (p *PhotoHandler) PhotosPage(ctx *gin.Context, model template.Model) (string, error) {
-	page, err := util.ParamInt32(ctx, "page")
+func (p *PhotoHandler) PhotosPage(ctx web.Context, model template.Model) (string, error) {
+	page, err := util.ParamWebInt32(ctx, "page")
 	if err != nil {
 		return "", err
 	}
 	return p.PhotoModel.Photos(ctx, model, int(page-1))
 }
 
-func (p *PhotoHandler) Phtotos(ctx *gin.Context, model template.Model) (string, error) {
+func (p *PhotoHandler) Phtotos(ctx web.Context, model template.Model) (string, error) {
 	return p.PhotoModel.Photos(ctx, model, 0)
 }

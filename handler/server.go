@@ -6,7 +6,9 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 
+	hertzserver "github.com/cloudwego/hertz/pkg/app/server"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/dig"
 	"go.uber.org/fx"
@@ -20,6 +22,7 @@ import (
 	"github.com/go-sonic/sonic/handler/middleware"
 	"github.com/go-sonic/sonic/handler/web"
 	"github.com/go-sonic/sonic/handler/web/ginadapter"
+	"github.com/go-sonic/sonic/handler/web/hertzadapter"
 	"github.com/go-sonic/sonic/model/dto"
 	"github.com/go-sonic/sonic/service"
 	"github.com/go-sonic/sonic/template"
@@ -30,12 +33,14 @@ type Server struct {
 	logger                    *zap.Logger
 	Config                    *config.Config
 	HTTPServer                *http.Server
-	Router                    *gin.Engine
+	HertzServer               *hertzserver.Hertz
+	GinEngine                 *gin.Engine
+	Router                    web.Router
 	Template                  *template.Template
 	AuthMiddleware            *middleware.AuthMiddleware
 	LocaleMiddleware          *middleware.LocaleMiddleware
 	RequestIDMiddleware       *middleware.RequestIDMiddleware
-	LogMiddleware             *middleware.GinLoggerMiddleware
+	LogMiddleware             *middleware.LoggerMiddleware
 	RecoveryMiddleware        *middleware.RecoveryMiddleware
 	InstallRedirectMiddleware *middleware.InstallRedirectMiddleware
 	OptionService             service.OptionService
@@ -93,7 +98,7 @@ type ServerParams struct {
 	AuthMiddleware            *middleware.AuthMiddleware
 	LocaleMiddleware          *middleware.LocaleMiddleware
 	RequestIDMiddleware       *middleware.RequestIDMiddleware
-	LogMiddleware             *middleware.GinLoggerMiddleware
+	LogMiddleware             *middleware.LoggerMiddleware
 	RecoveryMiddleware        *middleware.RecoveryMiddleware
 	InstallRedirectMiddleware *middleware.InstallRedirectMiddleware
 	OptionService             service.OptionService
@@ -143,19 +148,40 @@ type ServerParams struct {
 }
 
 func NewServer(param ServerParams, lifecycle fx.Lifecycle) *Server {
-	gin.SetMode(gin.ReleaseMode)
-	router := gin.New()
 	conf := param.Config
+	framework := strings.ToLower(strings.TrimSpace(conf.Server.Framework))
+	if framework == "" {
+		framework = "gin"
+	}
 
-	httpServer := &http.Server{
-		Addr:    fmt.Sprintf("%s:%s", conf.Server.Host, conf.Server.Port),
-		Handler: router,
+	var (
+		httpServer  *http.Server
+		hertzEngine *hertzserver.Hertz
+		ginEngine   *gin.Engine
+		router      web.Router
+	)
+	switch framework {
+	case "hertz":
+		hertzEngine = hertzserver.New(
+			hertzserver.WithHostPorts(fmt.Sprintf("%s:%s", conf.Server.Host, conf.Server.Port)),
+		)
+		router = hertzadapter.NewRouter(hertzEngine)
+	default:
+		gin.SetMode(gin.ReleaseMode)
+		ginEngine = gin.New()
+		router = ginadapter.NewRouter(ginEngine)
+		httpServer = &http.Server{
+			Addr:    fmt.Sprintf("%s:%s", conf.Server.Host, conf.Server.Port),
+			Handler: ginEngine,
+		}
 	}
 
 	s := &Server{
 		logger:                    param.Logger,
 		Config:                    param.Config,
 		HTTPServer:                httpServer,
+		HertzServer:               hertzEngine,
+		GinEngine:                 ginEngine,
 		Router:                    router,
 		Template:                  param.Template,
 		AuthMiddleware:            param.AuthMiddleware,
@@ -210,36 +236,53 @@ func NewServer(param ServerParams, lifecycle fx.Lifecycle) *Server {
 		ContentAPICommentHandler:  param.ContentAPICommentHandler,
 	}
 	lifecycle.Append(fx.Hook{
-		OnStop:  httpServer.Shutdown,
 		OnStart: s.Run,
+		OnStop:  s.Stop,
 	})
 	return s
 }
 
 func (s *Server) Run(ctx context.Context) error {
-	if config.IsDev() {
+	if s.GinEngine != nil && config.IsDev() {
 		gin.SetMode(gin.DebugMode)
 	}
 	go func() {
-		if err := s.HTTPServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			// print err info when httpServer start failed
-			s.logger.Error("unexpected error from ListenAndServe", zap.Error(err))
-			fmt.Printf("http server start error:%s\n", err.Error())
-			os.Exit(1)
+		if s.HTTPServer != nil {
+			if err := s.HTTPServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				s.logger.Error("unexpected error from ListenAndServe", zap.Error(err))
+				fmt.Printf("http server start error:%s\n", err.Error())
+				os.Exit(1)
+			}
+			return
+		}
+		if s.HertzServer != nil {
+			if err := s.HertzServer.Run(); err != nil {
+				s.logger.Error("unexpected error from hertz Run", zap.Error(err))
+				fmt.Printf("http server start error:%s\n", err.Error())
+				os.Exit(1)
+			}
 		}
 	}()
 	return nil
 }
 
-func (s *Server) wrapHandler(handler any) gin.HandlerFunc {
-	return ginadapter.Wrap(func(ctx web.Context) {
+func (s *Server) Stop(ctx context.Context) error {
+	if s.HTTPServer != nil {
+		return s.HTTPServer.Shutdown(ctx)
+	}
+	if s.HertzServer != nil {
+		return s.HertzServer.Shutdown(ctx)
+	}
+	return nil
+}
+
+func (s *Server) wrapHandler(handler any) web.HandlerFunc {
+	return func(ctx web.Context) {
 		var (
 			data any
 			err  error
 		)
 		switch h := handler.(type) {
-		case func(*gin.Context) (interface{}, error):
-			data, err = h(ginadapter.Unwrap(ctx))
 		case func(web.Context) (interface{}, error):
 			data, err = h(ctx)
 		default:
@@ -270,21 +313,20 @@ func (s *Server) wrapHandler(handler any) gin.HandlerFunc {
 			Data:    data,
 			Message: middleware.T(ctx, "common.ok", "OK"),
 		})
-	})
+	}
 }
 
-type wrapperHTMLHandler func(ctx *gin.Context, model template.Model) (templateName string, err error)
+type wrapperHTMLHandler func(ctx web.Context, model template.Model) (templateName string, err error)
 
 var (
 	htmlContentType = []string{"text/html; charset=utf-8"}
 	xmlContentType  = []string{"application/xml; charset=utf-8"}
 )
 
-func (s *Server) wrapHTMLHandler(handler wrapperHTMLHandler) gin.HandlerFunc {
-	return ginadapter.Wrap(func(ctx web.Context) {
-		ginCtx := ginadapter.Unwrap(ctx)
+func (s *Server) wrapHTMLHandler(handler wrapperHTMLHandler) web.HandlerFunc {
+	return func(ctx web.Context) {
 		model := template.Model{}
-		templateName, err := handler(ginCtx, model)
+		templateName, err := handler(ctx, model)
 		if err != nil {
 			s.handleError(ctx, err)
 			return
@@ -292,35 +334,32 @@ func (s *Server) wrapHTMLHandler(handler wrapperHTMLHandler) gin.HandlerFunc {
 		if templateName == "" {
 			return
 		}
-		header := ginCtx.Writer.Header()
-		if val := header["Content-Type"]; len(val) == 0 {
-			header["Content-Type"] = htmlContentType
+		if ctx.ResponseHeader("Content-Type") == "" {
+			ctx.SetHeader("Content-Type", htmlContentType[0])
 		}
-		err = s.Template.ExecuteTemplate(ginCtx.Writer, templateName, model)
+		err = s.Template.ExecuteTemplate(ctx.Writer(), templateName, model)
 		if err != nil {
 			s.logger.Error("render template err", zap.Error(err))
 		}
-	})
+	}
 }
 
-func (s *Server) wrapTextHandler(handler wrapperHTMLHandler) gin.HandlerFunc {
-	return ginadapter.Wrap(func(ctx web.Context) {
-		ginCtx := ginadapter.Unwrap(ctx)
+func (s *Server) wrapTextHandler(handler wrapperHTMLHandler) web.HandlerFunc {
+	return func(ctx web.Context) {
 		model := template.Model{}
-		templateName, err := handler(ginCtx, model)
+		templateName, err := handler(ctx, model)
 		if err != nil {
 			s.handleError(ctx, err)
 			return
 		}
-		header := ginCtx.Writer.Header()
-		if val := header["Content-Type"]; len(val) == 0 {
-			header["Content-Type"] = xmlContentType
+		if ctx.ResponseHeader("Content-Type") == "" {
+			ctx.SetHeader("Content-Type", xmlContentType[0])
 		}
-		err = s.Template.ExecuteTextTemplate(ginCtx.Writer, templateName, model)
+		err = s.Template.ExecuteTextTemplate(ctx.Writer(), templateName, model)
 		if err != nil {
 			s.logger.Error("render template err", zap.Error(err))
 		}
-	})
+	}
 }
 
 func (s *Server) handleError(ctx web.Context, err error) {
@@ -344,10 +383,8 @@ func (s *Server) handleError(ctx web.Context, err error) {
 		templateName = "common/error/error"
 	}
 
-	ginCtx := ginadapter.Unwrap(ctx)
-	header := ginCtx.Writer.Header()
-	if val := header["Content-Type"]; len(val) == 0 {
-		header["Content-Type"] = htmlContentType
+	if ctx.ResponseHeader("Content-Type") == "" {
+		ctx.SetHeader("Content-Type", htmlContentType[0])
 	}
 	ctx.Status(status)
 
@@ -359,7 +396,7 @@ func (s *Server) handleError(ctx web.Context, err error) {
 	model["error_default_message"] = middleware.T(ctx, "error.default_message", "Unknown error")
 	model["back_home_label"] = middleware.T(ctx, "common.home", "Home")
 
-	err = s.Template.ExecuteTemplate(ginCtx.Writer, templateName, model)
+	err = s.Template.ExecuteTemplate(ctx.Writer(), templateName, model)
 	if err != nil {
 		s.logger.Error("render error template err", zap.Error(err))
 	}

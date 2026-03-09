@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/go-sonic/sonic/handler/web"
 	"github.com/go-sonic/sonic/handler/web/ginadapter"
 	"github.com/go-sonic/sonic/model/property"
 	"github.com/go-sonic/sonic/service"
@@ -21,20 +22,23 @@ func NewInstallRedirectMiddleware(optionService service.OptionService) *InstallR
 }
 
 func (i *InstallRedirectMiddleware) InstallRedirect() gin.HandlerFunc {
+	return ginadapter.Wrap(i.Handler())
+}
+
+func (i *InstallRedirectMiddleware) Handler() web.HandlerFunc {
 	skipPath := map[string]struct{}{
 		"/api/admin/installations":  {},
 		"/api/admin/is_installed":   {},
 		"/api/admin/login/precheck": {},
 	}
-	return func(ctx *gin.Context) {
-		webCtx := ginadapter.NewContext(ctx)
-		path := ctx.Request.URL.Path
+	return func(ctx web.Context) {
+		path := ctx.Path()
 		if _, ok := skipPath[path]; ok {
 			return
 		}
 		isInstall, err := i.optionService.GetOrByDefaultWithErr(ctx, property.IsInstalled, false)
 		if err != nil {
-			abortWithStatusJSON(webCtx, http.StatusInternalServerError, "")
+			abortWithStatusJSON(ctx, http.StatusInternalServerError, "")
 			return
 		}
 		if !isInstall.(bool) {
@@ -42,6 +46,5 @@ func (i *InstallRedirectMiddleware) InstallRedirect() gin.HandlerFunc {
 			ctx.Abort()
 			return
 		}
-		ctx.Next()
 	}
 }

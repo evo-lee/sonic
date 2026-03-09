@@ -42,10 +42,12 @@ func (m *LocaleMiddleware) apply(ctx web.Context) {
 	ctx.Next()
 }
 
+func (m *LocaleMiddleware) Handler() web.HandlerFunc {
+	return m.apply
+}
+
 func (m *LocaleMiddleware) Locale() gin.HandlerFunc {
-	return ginadapter.Wrap(func(ctx web.Context) {
-		m.apply(ctx)
-	})
+	return ginadapter.Wrap(m.Handler())
 }
 
 func GetLocale(ctx web.Context) string {

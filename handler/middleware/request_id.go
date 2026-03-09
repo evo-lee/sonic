@@ -29,10 +29,12 @@ func (m *RequestIDMiddleware) apply(ctx web.Context) {
 	ctx.Next()
 }
 
+func (m *RequestIDMiddleware) Handler() web.HandlerFunc {
+	return m.apply
+}
+
 func (m *RequestIDMiddleware) RequestID() gin.HandlerFunc {
-	return ginadapter.Wrap(func(ctx web.Context) {
-		m.apply(ctx)
-	})
+	return ginadapter.Wrap(m.Handler())
 }
 
 func GetRequestID(ctx web.Context) string {

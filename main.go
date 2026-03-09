@@ -46,7 +46,7 @@ func InitApp() *fx.App {
 			middleware.NewAuthMiddleware,
 			middleware.NewLocaleMiddleware,
 			middleware.NewRequestIDMiddleware,
-			middleware.NewGinLoggerMiddleware,
+			middleware.NewLoggerMiddleware,
 			middleware.NewRecoveryMiddleware,
 			middleware.NewInstallRedirectMiddleware,
 		),

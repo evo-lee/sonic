@@ -13,6 +13,7 @@ type RequestBinder interface {
 
 // Context is the minimal request/response surface shared by framework adapters.
 type Context interface {
+	context.Context
 	RequestContext() context.Context
 	Request() *http.Request
 	Writer() io.Writer
@@ -21,7 +22,9 @@ type Context interface {
 	RawQuery() string
 	ClientIP() string
 	Header(string) string
+	ResponseHeader(string) string
 	SetHeader(string, string)
+	StatusCode() int
 	Query(string) (string, bool)
 	Param(string) string
 	Cookie(string) (string, error)

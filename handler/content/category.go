@@ -1,9 +1,8 @@
 package content
 
 import (
-	"github.com/gin-gonic/gin"
-
 	"github.com/go-sonic/sonic/handler/content/model"
+	"github.com/go-sonic/sonic/handler/web"
 	"github.com/go-sonic/sonic/service"
 	"github.com/go-sonic/sonic/service/assembler"
 	"github.com/go-sonic/sonic/template"
@@ -40,12 +39,12 @@ func NewCategoryHandler(
 	}
 }
 
-func (c *CategoryHandler) Categories(ctx *gin.Context, model template.Model) (string, error) {
+func (c *CategoryHandler) Categories(ctx web.Context, model template.Model) (string, error) {
 	return c.CategoryModel.ListCategories(ctx, model)
 }
 
-func (c *CategoryHandler) CategoryDetail(ctx *gin.Context, model template.Model) (string, error) {
-	slug, err := util.ParamString(ctx, "slug")
+func (c *CategoryHandler) CategoryDetail(ctx web.Context, model template.Model) (string, error) {
+	slug, err := util.ParamWebString(ctx, "slug")
 	if err != nil {
 		return "", err
 	}
@@ -53,13 +52,13 @@ func (c *CategoryHandler) CategoryDetail(ctx *gin.Context, model template.Model)
 	return c.CategoryModel.CategoryDetail(ctx, model, slug, 0, token)
 }
 
-func (c *CategoryHandler) CategoryDetailPage(ctx *gin.Context, model template.Model) (string, error) {
-	slug, err := util.ParamString(ctx, "slug")
+func (c *CategoryHandler) CategoryDetailPage(ctx web.Context, model template.Model) (string, error) {
+	slug, err := util.ParamWebString(ctx, "slug")
 	if err != nil {
 		return "", err
 	}
 
-	page, err := util.ParamInt32(ctx, "page")
+	page, err := util.ParamWebInt32(ctx, "page")
 	if err != nil {
 		return "", err
 	}
