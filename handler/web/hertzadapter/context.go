@@ -15,6 +15,8 @@ import (
 	"github.com/go-sonic/sonic/handler/web"
 )
 
+const requestContextKey = "__sonic_request_context__"
+
 type Context struct {
 	baseCtx      context.Context
 	ctx          *hertzapp.RequestContext
@@ -23,6 +25,13 @@ type Context struct {
 }
 
 func NewContext(baseCtx context.Context, ctx *hertzapp.RequestContext) web.Context {
+	if ctx != nil {
+		if persisted, ok := ctx.Get(requestContextKey); ok {
+			if persistedCtx, ok := persisted.(context.Context); ok && persistedCtx != nil {
+				baseCtx = persistedCtx
+			}
+		}
+	}
 	if baseCtx == nil {
 		baseCtx = context.Background()
 	}
@@ -118,15 +127,20 @@ func (c *Context) MultipartForm() (*multipart.Form, error) {
 }
 
 func (c *Context) Set(key string, value any) {
+	c.baseCtx = context.WithValue(c.baseCtx, key, value)
+	c.ctx.Set(requestContextKey, c.baseCtx)
 	c.ctx.Set(key, value)
 }
 
 func (c *Context) Get(key any) (any, bool) {
-	strKey, ok := key.(string)
-	if !ok {
-		return nil, false
+	if value := c.baseCtx.Value(key); value != nil {
+		return value, true
 	}
-	return c.ctx.Get(strKey)
+	strKey, ok := key.(string)
+	if ok {
+		return c.ctx.Get(strKey)
+	}
+	return nil, false
 }
 
 func (c *Context) Bind(value any) error {
