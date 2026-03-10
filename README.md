@@ -54,6 +54,8 @@ cd sonic
 ./sonic -config conf/config.yaml
 ```
 
+> Sonic now uses Hertz as its built-in HTTP runtime. No `server.framework` switch is required in the config file.
+
 **Initialization**
 
 
@@ -78,6 +80,8 @@ git clone --depth 1 https://github.com/go-sonic/sonic
 cd sonic
 go run main.go
 ```
+
+> The development server also starts with Hertz by default.
 > The default theme is now bundled in this repository. No `git submodule` initialization is required.
 > To compile this package on Windows, you must have the gcc compiler installed，for example the TDM-GCC Toolchain can be found ([here](https://jmeubank.github.io/tdm-gcc/)).
 

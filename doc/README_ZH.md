@@ -53,6 +53,8 @@ cd sonic
 ./sonic -config conf/config.yaml
 ```
 
+> Sonic 现在固定使用 Hertz 作为内置 HTTP 运行时，不再需要在配置文件里切换 `server.framework`。
+
 **然后你就可以通过浏览器访问sonic了，默认的端口是8080**
 
 后台管理路径是 http://ip:port/admin
@@ -70,6 +72,8 @@ git clone --depth 1 https://github.com/go-sonic/sonic
 cd sonic
 go run main.go
 ```
+
+> 本地开发启动默认也是 Hertz。
 > 默认主题已内置到仓库中，不再需要执行 `git submodule` 初始化。
 > 如果你在windows上构建该项目，请确保你已经正确安装了gcc编译器，比如，你可以在[这里](https://jmeubank.github.io/tdm-gcc/)找到一个TDM版本的gcc编译器。
 
