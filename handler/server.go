@@ -152,6 +152,7 @@ func NewServer(param ServerParams, lifecycle fx.Lifecycle) *Server {
 	conf := param.Config
 	hertzEngine := hertzserver.New(
 		hertzserver.WithHostPorts(fmt.Sprintf("%s:%s", conf.Server.Host, conf.Server.Port)),
+		hertzserver.WithMaxRequestBodySize(50*1024*1024), // 50MB for theme uploads
 	)
 	router := hertzadapter.NewRouter(hertzEngine)
 
