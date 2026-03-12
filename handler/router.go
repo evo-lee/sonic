@@ -86,7 +86,7 @@ func (s *Server) RegisterRouters() {
 			adminAPIRouter.POST("/installations", s.wrapHandler(s.InstallHandler.InstallBlog))
 			{
 				authRouter := adminAPIRouter.Group("")
-				authRouter.Use(s.AuthMiddleware.Handler(), s.CSRFMiddleware.Handler())
+				authRouter.Use(s.AuthMiddleware.Handler())
 				authRouter.POST("/logout", s.wrapHandler(s.AdminHandler.LogOut))
 				authRouter.POST("/password/code", s.wrapHandler(s.AdminHandler.SendResetCode))
 				authRouter.GET("/environments", s.wrapHandler(s.AdminHandler.GetEnvironments))
@@ -315,7 +315,8 @@ func (s *Server) RegisterRouters() {
 
 			contentRouter.POST("/content/:type/:slug/authentication", s.wrapHTMLHandler(s.ViewHandler.Authenticate))
 
-			contentRouter.GET("", s.wrapHTMLHandler(s.IndexHandler.Index))
+			// Register index route with middleware
+			router.GET("/", s.TimeoutMiddleware.Handler(), s.LocaleMiddleware.Handler(), s.RequestIDMiddleware.Handler(), s.LogMiddleware.HandlerWithConfig(middleware.LoggerConfig{}), s.RecoveryMiddleware.Handler(), s.InstallRedirectMiddleware.Handler(), s.wrapHTMLHandler(s.IndexHandler.Index))
 			contentRouter.GET("/page/:page", s.wrapHTMLHandler(s.IndexHandler.IndexPage))
 			contentRouter.GET("/robots.txt", s.wrapTextHandler(s.FeedHandler.Robots))
 			contentRouter.GET("/atom", s.wrapTextHandler(s.FeedHandler.Atom))

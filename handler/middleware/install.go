@@ -22,6 +22,7 @@ func (i *InstallRedirectMiddleware) Handler() web.HandlerFunc {
 	}
 	return func(ctx web.Context) {
 		if _, ok := skipPath[ctx.Path()]; ok {
+			ctx.Next()
 			return
 		}
 		isInstall, err := i.optionService.GetOrByDefaultWithErr(ctx, property.IsInstalled, false)
@@ -32,6 +33,8 @@ func (i *InstallRedirectMiddleware) Handler() web.HandlerFunc {
 		if !isInstall.(bool) {
 			ctx.Redirect(http.StatusFound, "/admin/#install")
 			ctx.Abort()
+			return
 		}
+		ctx.Next()
 	}
 }

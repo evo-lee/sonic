@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"context"
-	"net/http"
 	"time"
 
 	"github.com/go-sonic/sonic/handler/web"
@@ -32,31 +31,7 @@ func NewTimeoutMiddleware(config TimeoutConfig) *TimeoutMiddleware {
 // Handler returns the timeout middleware handler
 func (t *TimeoutMiddleware) Handler() web.HandlerFunc {
 	return func(ctx web.Context) {
-		// Create a context with timeout
-		timeoutCtx, cancel := context.WithTimeout(ctx.RequestContext(), t.timeout)
-		defer cancel()
-
-		// Create a channel to signal completion
-		done := make(chan struct{})
-
-		// Run the handler in a goroutine
-		go func() {
-			ctx.Next()
-			close(done)
-		}()
-
-		// Wait for either completion or timeout
-		select {
-		case <-done:
-			// Request completed successfully
-			return
-		case <-timeoutCtx.Done():
-			// Timeout occurred
-			if timeoutCtx.Err() == context.DeadlineExceeded {
-				abortWithStatusJSON(ctx, http.StatusGatewayTimeout, "Request timeout")
-			}
-			return
-		}
+		ctx.Next()
 	}
 }
 

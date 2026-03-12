@@ -286,6 +286,9 @@ var (
 
 func (s *Server) wrapHTMLHandler(handler wrapperHTMLHandler) web.HandlerFunc {
 	return func(ctx web.Context) {
+		// Set HTML content type BEFORE calling handler
+		ctx.SetHeader("Content-Type", htmlContentType[0])
+
 		model := template.Model{}
 		templateName, err := handler(ctx, model)
 		if err != nil {
@@ -294,9 +297,6 @@ func (s *Server) wrapHTMLHandler(handler wrapperHTMLHandler) web.HandlerFunc {
 		}
 		if templateName == "" {
 			return
-		}
-		if ctx.ResponseHeader("Content-Type") == "" {
-			ctx.SetHeader("Content-Type", htmlContentType[0])
 		}
 		err = s.Template.ExecuteTemplate(ctx.Writer(), templateName, model)
 		if err != nil {
