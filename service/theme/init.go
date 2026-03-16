@@ -12,5 +12,6 @@ func init() {
 		NewPropertyScanner,
 		fx.Annotated{Target: NewMultipartZipThemeFetcher, Name: "multipartZipThemeFetcher"},
 		fx.Annotated{Target: NewGitThemeFetcher, Name: "gitRepoThemeFetcher"},
+		fx.Annotated{Target: NewURLZipThemeFetcher, Name: "urlZipThemeFetcher"},
 	)
 }

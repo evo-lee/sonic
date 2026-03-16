@@ -299,7 +299,15 @@ func (t *ThemeHandler) FetchTheme(ctx web.Context) (interface{}, error) {
 }
 
 func (t *ThemeHandler) UpdateThemeByFetching(ctx web.Context) (interface{}, error) {
-	return nil, xerr.WithMsg(nil, "not support").WithStatus(xerr.StatusInternalServerError)
+	themeID, err := util.ParamWebString(ctx, "themeID")
+	if err != nil {
+		return nil, err
+	}
+	uri, err := util.MustGetWebQueryString(ctx, "uri")
+	if err != nil {
+		return nil, err
+	}
+	return t.ThemeService.UpdateThemeByFetch(ctx.RequestContext(), themeID, uri)
 }
 
 func (t *ThemeHandler) ReloadTheme(ctx web.Context) (interface{}, error) {

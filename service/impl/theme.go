@@ -36,6 +36,7 @@ type themeFetchers struct {
 	fx.In
 	MultipartZipThemeFetcher theme.ThemeFetcher `name:"multipartZipThemeFetcher"`
 	GitRepoThemeFetcher      theme.ThemeFetcher `name:"gitRepoThemeFetcher"`
+	URLZipThemeFetcher       theme.ThemeFetcher `name:"urlZipThemeFetcher"`
 }
 
 func NewThemeService(optionService service.OptionService, config *config.Config, event event.Bus, propertyScanner theme.PropertyScanner, fileScanner theme.FileScanner, themeFetcher themeFetchers) service.ThemeService {
@@ -478,9 +479,50 @@ func (t *themeServiceImpl) Render(ctx context.Context, name string) (string, err
 }
 
 func (t *themeServiceImpl) Fetch(ctx context.Context, themeURL string) (*dto.ThemeProperty, error) {
-	fetchTheme, err := t.ThemeFetchers.GitRepoThemeFetcher.FetchTheme(ctx, themeURL)
+	var fetchTheme *dto.ThemeProperty
+	var err error
+
+	// 判断是 git 仓库还是 zip 文件 URL
+	if strings.HasSuffix(themeURL, ".zip") {
+		// 使用 URL Zip Fetcher 下载 zip 文件
+		fetchTheme, err = t.ThemeFetchers.URLZipThemeFetcher.FetchTheme(ctx, themeURL)
+	} else {
+		// 使用 Git Fetcher 克隆 git 仓库
+		fetchTheme, err = t.ThemeFetchers.GitRepoThemeFetcher.FetchTheme(ctx, themeURL)
+	}
+
 	if err != nil {
 		return nil, xerr.WithStatus(err, xerr.StatusBadRequest).WithMsg(err.Error())
 	}
 	return t.addTheme(ctx, fetchTheme)
+}
+
+func (t *themeServiceImpl) UpdateThemeByFetch(ctx context.Context, themeID, themeURL string) (*dto.ThemeProperty, error) {
+	oldThemeProperty, err := t.GetThemeByID(ctx, themeID)
+	if err != nil {
+		return nil, err
+	}
+
+	var newThemeProperty *dto.ThemeProperty
+
+	// 判断是 git 仓库还是 zip 文件 URL
+	if strings.HasSuffix(themeURL, ".zip") {
+		// 使用 URL Zip Fetcher 下载 zip 文件
+		newThemeProperty, err = t.ThemeFetchers.URLZipThemeFetcher.FetchTheme(ctx, themeURL)
+	} else {
+		// 使用 Git Fetcher 克隆 git 仓库
+		newThemeProperty, err = t.ThemeFetchers.GitRepoThemeFetcher.FetchTheme(ctx, themeURL)
+	}
+
+	if err != nil {
+		return nil, xerr.WithStatus(err, xerr.StatusBadRequest).WithMsg(err.Error())
+	}
+
+	// 删除旧主题目录
+	err = os.RemoveAll(oldThemeProperty.ThemePath)
+	if err != nil {
+		return nil, xerr.WithMsg(err, "delete old theme err").WithStatus(xerr.StatusInternalServerError)
+	}
+
+	return t.addTheme(ctx, newThemeProperty)
 }
