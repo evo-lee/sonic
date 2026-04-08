@@ -307,6 +307,12 @@ func (s *Server) RegisterRouters() {
 					emailRouter := authRouter.Group("/mails")
 					emailRouter.POST("/test", s.wrapHandler(s.EmailHandler.Test))
 				}
+				{
+					aiRouter := authRouter.Group("/ai")
+					aiRouter.POST("/summarize", s.wrapHandler(s.AIHandler.Summarize))
+					aiRouter.POST("/suggest-tags", s.wrapHandler(s.AIHandler.SuggestTags))
+					aiRouter.POST("/polish", s.wrapHandler(s.AIHandler.Polish))
+				}
 			}
 		}
 		{

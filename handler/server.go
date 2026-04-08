@@ -44,6 +44,7 @@ type Server struct {
 	OptionService             service.OptionService
 	ThemeService              service.ThemeService
 	SheetService              service.SheetService
+	AIHandler                 *admin.AIHandler
 	AdminHandler              *admin.AdminHandler
 	AttachmentHandler         *admin.AttachmentHandler
 	BackupHandler             *admin.BackupHandler
@@ -105,6 +106,7 @@ type ServerParams struct {
 	OptionService             service.OptionService
 	ThemeService              service.ThemeService
 	SheetService              service.SheetService
+	AIHandler                 *admin.AIHandler
 	AdminHandler              *admin.AdminHandler
 	AttachmentHandler         *admin.AttachmentHandler
 	BackupHandler             *admin.BackupHandler
@@ -171,6 +173,7 @@ func NewServer(param ServerParams, lifecycle fx.Lifecycle) *Server {
 		LogMiddleware:             param.LogMiddleware,
 		RecoveryMiddleware:        param.RecoveryMiddleware,
 		InstallRedirectMiddleware: param.InstallRedirectMiddleware,
+		AIHandler:                 param.AIHandler,
 		AdminHandler:              param.AdminHandler,
 		AttachmentHandler:         param.AttachmentHandler,
 		BackupHandler:             param.BackupHandler,
