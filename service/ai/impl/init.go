@@ -6,7 +6,7 @@ import (
 
 func init() {
 	injection.Provide(
-		NewAnthropicProvider,
+		NewConfigurableProvider,
 		NewContentService,
 	)
 }

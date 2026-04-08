@@ -12,4 +12,10 @@ type ContentService interface {
 
 	// Polish rewrites the content for clarity and readability.
 	Polish(ctx context.Context, content string) (string, error)
+
+	// PolishStream streams the polished content chunk by chunk.
+	PolishStream(ctx context.Context, content string) (<-chan StreamChunk, error)
+
+	// SummarizeStream streams the generated summary chunk by chunk.
+	SummarizeStream(ctx context.Context, content string) (<-chan StreamChunk, error)
 }

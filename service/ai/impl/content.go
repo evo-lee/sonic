@@ -46,12 +46,27 @@ func (s *contentServiceImpl) SuggestTags(ctx context.Context, title, content str
 
 func (s *contentServiceImpl) Polish(ctx context.Context, content string) (string, error) {
 	resp, err := s.provider.Complete(ctx, ai.CompletionRequest{
-		System: "You are an expert editor. Improve the clarity, flow, and readability of the text. Preserve the original language, meaning, and markdown formatting.",
-		Prompt: content,
+		System:    "You are an expert editor. Improve the clarity, flow, and readability of the text. Preserve the original language, meaning, and markdown formatting.",
+		Prompt:    content,
 		MaxTokens: 4096,
 	})
 	if err != nil {
 		return "", err
 	}
 	return strings.TrimSpace(resp.Content), nil
+}
+
+func (s *contentServiceImpl) PolishStream(ctx context.Context, content string) (<-chan ai.StreamChunk, error) {
+	return s.provider.Stream(ctx, ai.CompletionRequest{
+		System:    "You are an expert editor. Improve the clarity, flow, and readability of the text. Preserve the original language, meaning, and markdown formatting.",
+		Prompt:    content,
+		MaxTokens: 4096,
+	})
+}
+
+func (s *contentServiceImpl) SummarizeStream(ctx context.Context, content string) (<-chan ai.StreamChunk, error) {
+	return s.provider.Stream(ctx, ai.CompletionRequest{
+		System: "You are a concise technical writer. Reply with a single paragraph summary, no more than 3 sentences, in the same language as the input.",
+		Prompt: "Summarize the following article:\n\n" + content,
+	})
 }
