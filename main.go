@@ -17,6 +17,8 @@ import (
 	"github.com/go-sonic/sonic/log"
 	"github.com/go-sonic/sonic/template"
 	"github.com/go-sonic/sonic/template/extension"
+
+	_ "github.com/go-sonic/sonic/service/ai/impl" // register AI services
 )
 
 // NewLoginRateLimitMiddleware creates a rate limiter for login endpoints
@@ -75,6 +77,7 @@ func InitApp() *fx.App {
 			listener.NewLogEventListener,
 			listener.NewPostUpdateListener,
 			listener.NewCommentListener,
+			listener.NewAISummaryListener,
 			extension.RegisterCategoryFunc,
 			extension.RegisterCommentFunc,
 			extension.RegisterTagFunc,
