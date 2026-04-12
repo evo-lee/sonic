@@ -28,6 +28,7 @@ Sonic 意为声速的、声音的，正如它的名字一样, sonic 致力于成
 - 支持更换主题
 - 支持 Linux、Windows、Mac OS等主流操作系统，支持x86、x64、Arm、Arm64、MIPS等指令集架构
 - 支持对象存储(MINIO、Google Cloud、AWS、AliYun)
+- AI 内容辅助功能：文章摘要生成、标签建议、写作润色——支持 Anthropic Claude、OpenAI 及 Ollama
 
 ## 🎊 Preview
 

@@ -47,6 +47,7 @@ HTTP Request
   - `handler/web/` — Hertz adapter/abstraction (request/response helpers)
   - `handler/binding/` — Request parsing and validation
 - **`service/impl/`** — Business logic implementations
+- **`service/ai/`** — AI provider abstraction and content service; `impl/` subdirectory holds Anthropic, OpenAI, and Ollama backends plus the configurable factory
 - **`dal/`** — Data access layer; GORM query generation (generated code lives here)
 - **`model/`** — Data structures: `entity/` (GORM models), `dto/` (request/response), `vo/` (value objects), `param/`, `projection/`
 - **`injection/`** — Uber FX dependency injection wiring

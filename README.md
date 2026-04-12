@@ -29,6 +29,7 @@ Thanks to the [Halo](https://github.com/halo-dev) project team, who inspired thi
 - Support changing theme
 - Support Linux、Windows、Mac OS. And Support x86、x64、Arm、Arm64、MIPS
 - Object storage(MINIO、Google Cloud、AWS、AliYun)
+- AI-powered content features: summarization, tag suggestions, and writing polish — works with Anthropic Claude, OpenAI, and Ollama
 
 
 ## 🎊 Preview
