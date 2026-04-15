@@ -80,6 +80,8 @@ Object storage abstraction in `service/storage/`. Supports MinIO, AWS S3, Aliyun
 
 Config files in `conf/config.yaml` (prod) and `conf/config.dev.yaml` (dev). Key settings: server port (default 8080), work directory (logs/DB/uploads/templates), database DSN.
 
+AI features are configured at runtime via the admin API (`GET/POST /api/admin/ai/config`) and stored in the DB property system. The four properties are: `ai_provider` (anthropic/openai/ollama, default: anthropic), `ai_api_key`, `ai_model`, and `ai_base_url` (for OpenAI-compatible endpoints). The YAML `ai:` block in config files sets startup defaults for `api_key` and `model`; leave `api_key` empty to disable AI features entirely.
+
 ## gstack
 
 Use the `/browse` skill from gstack for all web browsing. Never use `mcp__claude-in-chrome__*` tools.
